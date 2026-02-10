@@ -1,0 +1,15 @@
+{
+    "name": "forge-fun-backend",
+    "version": "1.0.0",
+    "scripts": {
+        "dev": "tsx watch src/index.ts",
+        "start": "tsx src/index.ts"
+    },
+    "dependencies": {
+        "elysia": "latest",
+        "@elysiajs/node": "latest",
+        "tsx": "latest",
+        "typescript": "latest",
+        "@types/node": "latest"
+    }
+}
