@@ -6,10 +6,13 @@
         "start": "tsx src/index.ts"
     },
     "dependencies": {
-        "elysia": "latest",
+        "@elysiajs/cors": "latest",
         "@elysiajs/node": "latest",
+        "@types/node": "latest",
+        "elysia": "latest",
+        "puppeteer": "^24.37.2",
         "tsx": "latest",
         "typescript": "latest",
-        "@types/node": "latest"
+        "viem": "latest"
     }
 }
