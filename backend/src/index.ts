@@ -92,6 +92,7 @@ const fetchAgents = async () => {
 const app = new Elysia({ adapter: node() })
     .use(cors())
     .get('/', () => 'Hello from Forge.fun Backend (Obsidian Core)')
+    .get('/health', () => 'OK') // K8s/OpenClaw Health Check
     .get('/api/agents', async () => {
         const agents = await fetchAgents()
         return agents
@@ -155,7 +156,7 @@ const app = new Elysia({ adapter: node() })
         agentManager.updateEquippedSkills(id, body.skills);
         return { success: true };
     })
-    .listen(3000)
+    .listen(process.env.PORT || 3001)
 
 fetchAgents().then(agents => {
     console.log(`[INIT] Hydrated ${agents.length} agents from on-chain.`);

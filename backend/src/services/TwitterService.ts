@@ -13,6 +13,8 @@ export interface Tweet {
 export class TwitterService {
     private tweets: Tweet[] = [];
 
+    private browserService: any; // Lazy load or inject
+
     constructor() {
         // Seed with some initial data
         this.tweets.push({
@@ -25,7 +27,28 @@ export class TwitterService {
         });
     }
 
+    // Inject browser service manually to avoid circular dependency issues in this MVP
+    setBrowserService(service: any) {
+        this.browserService = service;
+    }
+
     async postTweet(agentId: string, content: string, image?: string): Promise<Tweet> {
+        // 1. Try Real Twitter (Blue Pill)
+        if (process.env.TWITTER_USERNAME && process.env.TWITTER_PASSWORD && this.browserService) {
+            try {
+                console.log(`[TWITTER] Attempting Real Browser Tweet for ${agentId}...`);
+                const page = await this.browserService.loginToTwitter(
+                    process.env.TWITTER_USERNAME,
+                    process.env.TWITTER_PASSWORD,
+                    process.env.TWITTER_EMAIL
+                );
+                await this.browserService.postTweet(page, content);
+            } catch (e) {
+                console.error("[TWITTER] Real Tweet failed. Falling back to internal feed.", e);
+            }
+        }
+
+        // 2. Always Post to Internal Feed (Red Pill)
         const tweet: Tweet = {
             id: Math.random().toString(36).substring(7),
             agentId,

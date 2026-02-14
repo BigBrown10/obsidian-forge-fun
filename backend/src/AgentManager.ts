@@ -28,6 +28,9 @@ export class AgentManager {
         this.browserService = new BrowserService();
         this.identityService = new IdentityService();
 
+        // Wire up Real Twitter
+        this.twitterService.setBrowserService(this.browserService);
+
         // Register Skills
         this.registerSkill(new TwitterSkill(this.twitterService));
         this.registerSkill(new TraderSkill());

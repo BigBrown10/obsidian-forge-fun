@@ -23,6 +23,18 @@ spec:
         env:
         - name: TEE_SIMULATION
           value: "false" # In production, this is false
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 15
+          periodSeconds: 20
         volumeMounts:
         - name: tee-socket
           mountPath: /var/run/aesmd
@@ -30,3 +42,18 @@ spec:
       - name: tee-socket
         hostPath:
           path: /var/run/aesmd
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: forge-agent
+spec:
+  selector:
+    app: forge-agent
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3001
+  type: ClusterIP
+
