@@ -4,18 +4,39 @@ services:
   agent-runtime:
     build:
       context: ./backend
-      target: runner
+      dockerfile: Dockerfile
+    image: forge-agent:latest
+    container_name: forge-agent
+    ports:
+      - "3001:3001"
     environment:
-      - NODE_ENV=production
+      - PORT=3001
       - TEE_SIMULATION=true
-      - TEE_SECRET_KEY=dev-secret-key
-    volumes:
-      - ./backend/src:/app/src
-    command: [ "npm", "start" ]
-    # simulating a "node" in the cluster
-    networks:
-      - openclaw-net
+      - TEE_SECRET_KEY=dev-tee-secret
+      - DATABASE_URL=postgresql://user:password@postgres:5432/forge
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
 
-networks:
-  openclaw-net:
-    driver: bridge
+  postgres:
+    image: postgres:15-alpine
+    container_name: forge-postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: forge
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    container_name: forge-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
