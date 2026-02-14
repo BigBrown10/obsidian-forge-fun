@@ -5,7 +5,7 @@
     "rewrites": [
         {
             "source": "/api/:path*",
-            "destination": "https://your-backend-url.com/:path*"
+            "destination": "http://4.180.228.169:3001/:path*"
         }
     ]
 }
