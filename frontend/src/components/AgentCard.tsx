@@ -45,31 +45,8 @@ export default function AgentCard({ agent, onClick, minimalist = false }: { agen
                     )} />
                 </div>
 
-                {/* Middle: Mini Sparkline (Fake for now) */}
-                {!minimalist && (
-                    <div className="h-12 w-full relative opacity-30 group-hover:opacity-100 transition-opacity duration-300 mb-4">
-                        <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible preserve-3d">
-                            <path
-                                d="M0 35 Q 20 40, 40 20 T 100 5"
-                                fill="none"
-                                stroke={isLaunched ? "var(--success)" : "var(--accent)"}
-                                strokeWidth="2"
-                                vectorEffect="non-scaling-stroke"
-                            />
-                            <path
-                                d="M0 35 Q 20 40, 40 20 T 100 5 L 100 40 L 0 40 Z"
-                                fill={`url(#gradient-${agent.id})`}
-                                className="opacity-20"
-                            />
-                            <defs>
-                                <linearGradient id={`gradient-${agent.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor={isLaunched ? "var(--success)" : "var(--accent)"} />
-                                    <stop offset="100%" stopColor="transparent" />
-                                </linearGradient>
-                            </defs>
-                        </svg>
-                    </div>
-                )}
+                {/* Middle: Spacer (formerly Sparkline) */}
+                <div className="flex-1" />
 
                 {/* Bottom: Stats */}
                 <div className="mt-auto pt-4 border-t border-white/5 flex items-end justify-between">

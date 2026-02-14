@@ -76,7 +76,7 @@ export default function Sidebar() {
                     </div>
                 </div>
                 <div className="mt-4 text-center text-[10px] text-text-dim font-mono">
-                    v2.3.0 (LIVE)
+                    v2.4.0 (REFINE)
                 </div>
             </div>
         </aside>
