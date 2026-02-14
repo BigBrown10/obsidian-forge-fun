@@ -21,19 +21,7 @@ export default function Incubator() {
     return (
         <div className="min-h-screen pb-20">
             <div className="flex justify-between items-end mb-12">
-                <div>
-                    <motion.h1
-                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                        className="text-4xl md:text-6xl font-bold text-white tracking-tighter mb-4 flex items-center gap-4"
-                    >
-                        <Egg className="w-12 h-12 text-accent" />
-                        The_Incubator
-                    </motion.h1>
-                    <p className="text-text-secondary max-w-lg leading-relaxed">
-                        Ghost Proposals awaiting ignition.
-                        Pledge BNB to birth these entities into the network.
-                    </p>
-                </div>
+                {/* Header Removed per User Request */}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
