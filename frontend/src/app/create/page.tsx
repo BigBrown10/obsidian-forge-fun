@@ -59,7 +59,15 @@ export default function CreateAgent() {
                     setTimeout(() => handlePledge(id), 1000)
                 } else {
                     // Done! Redirect to Agent Page
-                    setTimeout(() => router.push(`/agent/${ticker}`), 2000)
+                    // Force Backend Sync first
+                    fetch('/api/sync-registry', { method: 'POST' })
+                        .then(() => {
+                            setTimeout(() => router.push(`/agent/${ticker}`), 1000)
+                        })
+                        .catch(e => {
+                            console.error("Sync failed", e)
+                            setTimeout(() => router.push(`/agent/${ticker}`), 2000)
+                        })
                 }
             } else if (pendingProposalId) {
                 // Step 2 Success: Pledge Complete

@@ -145,6 +145,11 @@ const app = new Elysia({ adapter: node() })
         const passed = await agentManager.checkConsent(pollId);
         return { pollId, passed, timestamp: Date.now() };
     })
+    .post('/api/sync-registry', async () => {
+        console.log('[API] Force-syncing agent registry from chain...');
+        const agents = await fetchAgents();
+        return { success: true, count: agents.length };
+    })
     // Phase 17: Training & Skills
     .post('/api/agents/:id/prompt', async ({ params: { id }, body }: { params: { id: string }, body: any }) => {
         console.log(`[API] Updating prompt for ${id}`);
