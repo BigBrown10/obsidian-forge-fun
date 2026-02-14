@@ -88,4 +88,14 @@ export class IdentityService {
         }
         return null;
     }
+
+    saveCookies(agentId: string, cookies: any[]) {
+        const identities = JSON.parse(fs.readFileSync(IDENTITY_FILE, 'utf-8'));
+        if (identities[agentId]) {
+            identities[agentId].cookies = cookies;
+            identities[agentId].lastLogin = Date.now();
+            fs.writeFileSync(IDENTITY_FILE, JSON.stringify(identities, null, 2));
+            console.log(`🍪 Cookies saved for ${agentId}`);
+        }
+    }
 }

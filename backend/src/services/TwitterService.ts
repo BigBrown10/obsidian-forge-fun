@@ -32,16 +32,47 @@ export class TwitterService {
         this.browserService = service;
     }
 
+    private identityService: any;
+    setIdentityService(service: any) {
+        this.identityService = service;
+    }
+
     async postTweet(agentId: string, content: string, image?: string): Promise<Tweet> {
         // 1. Try Real Twitter (Blue Pill)
-        if (process.env.TWITTER_USERNAME && process.env.TWITTER_PASSWORD && this.browserService) {
+        if (this.browserService) {
             try {
                 console.log(`[TWITTER] Attempting Real Browser Tweet for ${agentId}...`);
-                const page = await this.browserService.loginToTwitter(
-                    process.env.TWITTER_USERNAME,
-                    process.env.TWITTER_PASSWORD,
-                    process.env.TWITTER_EMAIL
-                );
+
+                // A. Try loading cookies first
+                let page: any = null;
+                let cookiesLoaded = false;
+
+                if (this.identityService) {
+                    const identity = this.identityService.getIdentity(agentId) || {};
+                    if (identity.cookies && identity.cookies.length > 0) {
+                        console.log(`🍪 Found ${identity.cookies.length} saved cookies for ${agentId}. Injecting...`);
+                        await this.browserService.launch();
+                        page = await this.browserService['browser'].newPage();
+                        await this.browserService.setCookies(page, identity.cookies);
+                        cookiesLoaded = true;
+                    }
+                }
+
+                // If no cookies, we must login
+                if (!cookiesLoaded) {
+                    page = await this.browserService.loginToTwitter(
+                        process.env.TWITTER_USERNAME || 'mock_user',
+                        process.env.TWITTER_PASSWORD || 'mock_pass',
+                        process.env.TWITTER_EMAIL
+                    );
+
+                    // Save cookies after fresh login
+                    if (this.identityService && this.browserService.getCookies) {
+                        const newCookies = await this.browserService.getCookies(page);
+                        this.identityService.saveCookies(agentId, newCookies);
+                    }
+                }
+
                 await this.browserService.postTweet(page, content);
             } catch (e) {
                 console.error("[TWITTER] Real Tweet failed. Falling back to internal feed.", e);
