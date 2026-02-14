@@ -73,13 +73,20 @@ const MOCK_AGENTS: Agent[] = [
 
 export async function getAgents(): Promise<Agent[]> {
     try {
-        const res = await fetch('/api/agents')
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 4000) // 4s timeout
+        const res = await fetch('/api/agents', { signal: controller.signal })
+        clearTimeout(timeout)
         if (!res.ok) throw new Error('Failed to fetch agents')
         const realAgents = await res.json()
-        // Merge real agents with mock agents (Real first)
-        return [...realAgents, ...MOCK_AGENTS]
+        // Ensure bondingProgress exists on real agents
+        const normalized = realAgents.map((a: any) => ({
+            ...a,
+            bondingProgress: a.bondingProgress ?? (Number(a.pledgedAmount) / Number(a.targetAmount) * 100)
+        }))
+        return [...normalized, ...MOCK_AGENTS]
     } catch (error) {
-        console.error(error)
+        console.error('API unreachable, using mock data:', error)
         return MOCK_AGENTS
     }
 }
