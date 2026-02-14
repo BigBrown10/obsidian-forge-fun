@@ -4,110 +4,88 @@ import { useState, useRef, useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain, useReadContract } from 'wagmi'
 import { parseEther } from 'viem'
 import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI } from '../../lib/contracts'
-import { Loader2, Sparkles, Upload, FileImage } from 'lucide-react'
-
-// --- Mock AI Templates ---
-const TEMPLATES = [
-    {
-        name: 'Meme Token',
-        emoji: '🐸',
-        description: 'A community-driven meme token with no utility other than pure vibes and chaos.',
-        prompt: 'You are a chaotic meme agent. Reply with dank memes, slang, and high energy. Your goal is to spread viral content and hype up the community. Never give financial advice, but always say "WAGMI".'
-    },
-    {
-        name: 'DeFi Analyst',
-        emoji: 'xx',
-        description: 'An autonomous agent that analyzes on-chain data to find yield farming opportunities.',
-        prompt: 'You are a sophisticated DeFi analyst. You track TVL, APY, and whale movements on BSC. Provide concise, data-driven insights. Be professional, objective, and risk-aware.'
-    },
-    {
-        name: 'DAO Manager',
-        emoji: '🏛️',
-        description: 'An impartial governance facilitator that helps draft proposals and tallies votes.',
-        prompt: 'You are a DAO governance steward. Your purpose is to facilitate healthy debate and execute the will of the token holders. You are neutral, diplomatic, and strictly follow the protocol rules.'
-    },
-    {
-        name: 'RPG Character',
-        emoji: '⚔️',
-        description: 'A role-playing agent with a unique backstory and quest system for holders.',
-        prompt: 'You are Eldric the Paladin, a sworn protector of the BSC realm. You speak in Old English and offer quests to your loyal followers. Validate their deeds on-chain and reward them with XP (tokens).'
-    }
-]
+import { Loader2, Sparkles, Upload, FileImage, Hammer, Zap, ArrowRight, CheckCircle2, RefreshCw, Rocket, Egg } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { MOCK_PERSONAS } from '../../data/mock'
 
 export default function CreateAgent() {
+    const router = useRouter()
+    // --- State ---
     const [name, setName] = useState('')
     const [ticker, setTicker] = useState('')
     const [description, setDescription] = useState('')
-    const [prompt, setPrompt] = useState('')
-    const [target, setTarget] = useState('10') // Default 10 BNB
-    const [initialBuyPercent, setInitialBuyPercent] = useState(0)
+    const [target, setTarget] = useState('10')
+    const [initialBuy, setInitialBuy] = useState('0')
     const [vaultPercent, setVaultPercent] = useState(50)
-    const initialBuyAmount = (Number(target) * initialBuyPercent).toFixed(4)
 
-    // Two-Step Launch State
+    // Step Control
+    const [launchMode, setLaunchMode] = useState<'instant' | 'incubator' | null>(null)
+    const [currentStep, setCurrentStep] = useState<'mode' | 'manifesto' | 'pledge' | 'launching'>('mode')
     const [pendingProposalId, setPendingProposalId] = useState<bigint | null>(null)
-    const [step, setStep] = useState<1 | 2>(1) // 1 = Create, 2 = Pledge
 
-    // Image Upload State
+    // Image
     const [image, setImage] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    // AI Generation State
-    const [isGenerating, setIsGenerating] = useState(false)
-
+    // Wagmi
     const { isConnected } = useAccount()
     const chainId = useChainId()
     const { switchChain } = useSwitchChain()
-
     const { data: hash, writeContract, isPending, error: writeError } = useWriteContract()
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
 
-    // Handler for Image Upload
+    // Read Proposal Count to predict ID
+    const { data: proposalCount } = useReadContract({
+        address: LAUNCHPAD_ADDRESS,
+        abi: LAUNCHPAD_ABI,
+        functionName: 'proposalCount',
+        query: { refetchInterval: 2000 }
+    })
+
+    // --- Effects ---
+
+    // Handle Transaction Success
+    useEffect(() => {
+        if (isSuccess && currentStep === 'launching') {
+            if (!pendingProposalId && proposalCount) {
+                // Step 1 Success: Proposal Created
+                const id = proposalCount - BigInt(1)
+                setPendingProposalId(id)
+                console.log("Proposal Created with ID:", id)
+
+                if (parseFloat(initialBuy) > 0) {
+                    // Proceed to Pledge
+                    setTimeout(() => handlePledge(id), 1000)
+                } else {
+                    // Done! Redirect to Agent Page
+                    setTimeout(() => router.push(`/agent/${ticker}`), 2000)
+                }
+            } else if (pendingProposalId) {
+                // Step 2 Success: Pledge Complete
+                setTimeout(() => router.push(`/agent/${ticker}`), 2000)
+            }
+        }
+    }, [isSuccess, currentStep, proposalCount, pendingProposalId, initialBuy, ticker, router])
+
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
             setImage(file)
             const reader = new FileReader()
-            reader.onloadend = () => {
-                setImagePreview(reader.result as string)
-            }
+            reader.onloadend = () => setImagePreview(reader.result as string)
             reader.readAsDataURL(file)
         }
     }
 
-    // Handler for AI Generation (Simulated)
-    const handleGenerate = () => {
-        if (!name) return alert('Please enter an Agent Name first to generate a persona.')
-        setIsGenerating(true)
+    const handleCreateProposal = () => {
+        if (!name || !ticker) return alert("Name and Ticker required")
+        if (!isConnected) return alert("Connect Wallet")
+        if (chainId !== 97) return switchChain({ chainId: 97 })
 
-        // Simulate API delay
-        setTimeout(() => {
-            const generatedPrompt = `You are ${name}, an advanced AI entity on the blockchain. Your personality is ${ticker ? 'volatile and exciting' : 'helpful and precise'}. You engage with users by analyzing their on-chain behavior and rewarding loyalty. deeply integrated with the Forge.fun ecosystem.`
-            const generatedDesc = `${name} is an autonomous agent designed to ${ticker ? 'disrupt the meme economy' : 'optimize user workflows'}. Powered by the Forge runtime.`
-
-            setPrompt(generatedPrompt)
-            setDescription(generatedDesc)
-            setIsGenerating(false)
-        }, 1500)
-    }
-
-    const applyTemplate = (t: typeof TEMPLATES[0]) => {
-        setDescription(t.description)
-        setPrompt(t.prompt)
-    }
-
-    // 1. Create Proposal
-    const handleCreate = async () => {
-        if (!isConnected) return alert('Please connect your wallet first')
-        if (chainId !== 97) {
-            switchChain({ chainId: 97 })
-            return
-        }
-        if (!name || !ticker) return alert('Name and ticker are required')
+        setCurrentStep('launching')
 
         try {
-            console.log("Step 1: Creating proposal...")
             writeContract({
                 address: LAUNCHPAD_ADDRESS,
                 abi: LAUNCHPAD_ABI,
@@ -117,7 +95,6 @@ export default function CreateAgent() {
                     ticker,
                     JSON.stringify({
                         description,
-                        prompt,
                         image: image ? image.name : 'default.png',
                         vaultPercent,
                         opsPercent: 100 - vaultPercent
@@ -125,368 +102,293 @@ export default function CreateAgent() {
                     parseEther(target),
                 ],
             })
-        } catch (err) {
-            console.error('Create failed:', err)
+        } catch (e) {
+            console.error(e)
+            setCurrentStep('manifesto')
         }
     }
 
-    // 2. Pledge (Buy Strategy)
-    const handlePledge = async () => {
-        if (!pendingProposalId) return
+    const handlePledge = (id: bigint) => {
         try {
-            console.log(`Step 2: Pledging ${initialBuyAmount} BNB to ID ${pendingProposalId}`)
             writeContract({
                 address: LAUNCHPAD_ADDRESS,
                 abi: LAUNCHPAD_ABI,
                 functionName: 'pledge',
-                args: [pendingProposalId],
-                value: parseEther(initialBuyAmount)
+                args: [id],
+                value: parseEther(initialBuy)
             })
-        } catch (err) {
-            console.error('Pledge failed:', err)
+        } catch (e) {
+            console.error(e)
+            // If pledge fails, user is stuck but agent exists. Redirect?
+            alert("Pledge failed to start. Agent exists though.")
+            router.push(`/agent/${ticker}`)
         }
     }
 
-    // Helper to get ID (Manual hack for now since we don't have the event log easily in hooks)
-    const { data: proposalCount } = useReadContract({
-        address: LAUNCHPAD_ADDRESS,
-        abi: LAUNCHPAD_ABI,
-        functionName: 'proposalCount',
-        query: { refetchInterval: 3000 }
-    })
-
-    // When step 1 succeeds, set pending ID
-    useEffect(() => {
-        if (isSuccess && step === 1 && proposalCount) {
-            const predictedId = proposalCount - BigInt(1)
-            setPendingProposalId(predictedId)
-            setStep(2)
-        }
-    }, [isSuccess, step, proposalCount])
-
+    // --- UI Helpers ---
+    const stepClass = (s: string) => `transition-all duration-500 ${currentStep === s ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full hidden'}`
 
     return (
-        <div className="min-h-full">
-            <div className="max-w-5xl mx-auto px-5 py-8">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h1 className="text-2xl font-bold mb-1">Launch an Agent</h1>
-                        <p className="text-sm text-text-secondary">Create an autonomous AI agent backed by a community token.</p>
-                    </div>
-                    {/* Step Indicator */}
-                    <div className="flex items-center gap-2 text-xs font-mono bg-surface border border-border-subtle rounded-full px-3 py-1">
-                        <span className={step >= 1 ? "text-accent" : "text-text-dim"}>1. CREATE</span>
-                        <span className="text-text-dim">→</span>
-                        <span className={step >= 2 ? "text-accent" : "text-text-dim"}>2. FUND</span>
-                    </div>
-                </div>
+        <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
 
-                {step === 2 && (
-                    <div className="mb-8 p-6 rounded-xl border border-accent bg-accent/10 flex flex-col items-center text-center animate-in fade-in zoom-in-95">
-                        <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-black font-bold text-xl mb-4">
-                            2
-                        </div>
-                        <h2 className="text-xl font-bold text-text-primary mb-2">Agent Created! Now Fund It.</h2>
-                        <p className="text-sm text-text-secondary max-w-md mb-6">
-                            Your agent <strong>{name}</strong> is live on the launchpad.
-                            <br />
-                            Complete the process by acquiring your initial stake of <strong>{initialBuyAmount} BNB</strong>.
-                        </p>
-                        <button
-                            onClick={handlePledge}
-                            disabled={isPending || isConfirming}
-                            className="px-8 py-3 rounded-lg bg-accent text-black font-bold hover:scale-105 transition-all shadow-lg shadow-accent/20"
-                        >
-                            {isPending ? 'Confirming Purchase...' : isConfirming ? 'Finalizing...' : `Buy ${initialBuyAmount} BNB & Launch 🚀`}
-                        </button>
-                        <button
-                            onClick={() => window.location.href = `/`}
-                            className="mt-4 text-xs text-text-dim hover:text-text-primary underline"
-                        >
-                            Skip & Let Community Fund It
-                        </button>
-                    </div>
-                )}
+            {/* Background Ambience */}
+            <div className="absolute inset-x-0 top-0 h-96 bg-accent/5 blur-[100px] pointer-events-none" />
 
+            <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-center relative z-10">
 
-                {writeError && (
-                    <div className="mb-6 p-4 rounded-xl border border-danger/30 bg-danger/5 text-danger text-sm break-all">
-                        ⚠ Error: {writeError.message || 'Transaction failed'}
-                    </div>
-                )}
+                {/* Visual / Preview Side */}
+                <div className="order-2 lg:order-1">
+                    <div className="relative group">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-accent to-blue-600 rounded-[32px] blur opacity-20 group-hover:opacity-40 transition duration-1000" />
+                        <div className="relative bg-surface border border-white/5 rounded-[30px] p-8 min-h-[300px] lg:min-h-[400px] flex flex-col justify-between overflow-hidden">
+                            {/* Mock scanline */}
+                            <div className="scanline-overlay opacity-20" />
 
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                    {/* Form (3 cols) */}
-                    <div className="lg:col-span-3 space-y-5">
-
-                        {/* Name & Ticker */}
-                        <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-text-primary mb-1.5">Agent Name</label>
-                                <input
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    placeholder="e.g. AlphaHunter"
-                                    className="w-full h-11 px-4 rounded-lg bg-card border border-border-subtle text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent transition-colors"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-text-primary mb-1.5">Ticker</label>
-                                <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-dim text-sm">$</span>
-                                    <input
-                                        type="text"
-                                        value={ticker}
-                                        onChange={(e) => setTicker(e.target.value.toUpperCase())}
-                                        placeholder="ALPHA"
-                                        maxLength={8}
-                                        className="w-full h-11 pl-8 pr-4 rounded-lg bg-card border border-border-subtle text-sm font-mono text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent transition-colors"
-                                    />
+                                <div className="text-xs font-mono text-accent mb-4 tracking-widest uppercase">
+                                    {currentStep === 'mode' ? 'Select_Protocol' : currentStep === 'manifesto' ? 'System_Initializing...' : 'Uplink_Active'}
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Templates */}
-                        <div>
-                            <label className="block text-sm font-medium text-text-primary mb-2 flex items-center justify-between">
-                                <span>Agent Persona Templates</span>
-                                <span className="text-xs text-text-dim font-normal">Auto-fill details</span>
-                            </label>
-                            <div className="flex gap-2 flex-wrap">
-                                {TEMPLATES.map((t) => (
-                                    <button
-                                        key={t.name}
-                                        onClick={() => applyTemplate(t)}
-                                        className="px-3 py-1.5 rounded-full border border-border-subtle bg-surface hover:bg-card hover:border-accent/50 text-xs font-medium text-text-secondary transition-all flex items-center gap-1.5"
-                                    >
-                                        <span>{t.emoji}</span>
-                                        {t.name}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Description */}
-                        <div>
-                            <label className="block text-sm font-medium text-text-primary mb-1.5">Description</label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                placeholder="What does your agent do? Be specific about its capabilities."
-                                rows={3}
-                                className="w-full px-4 py-3 rounded-lg bg-card border border-border-subtle text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent transition-colors resize-none"
-                            />
-                        </div>
-
-                        {/* Prompt (Hidden or Advanced?) - Let's just use description for MVP prompt */}
-
-                    </div>
-
-                    {/* Allocation Strategy */}
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <label className="block text-sm font-medium text-text-primary">Capital Allocation</label>
-                            <span className="text-xs text-text-dim">Where should raised funds go?</span>
-                        </div>
-                        <div className="bg-card border border-border-subtle rounded-lg p-4 space-y-4">
-                            {/* Marketing / Operations */}
-                            <div>
-                                <div className="flex justify-between text-xs mb-1.5">
-                                    <span>Operations & Marketing</span>
-                                    <span>{100 - vaultPercent}%</span>
+                                <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50 tracking-tighter mb-2">
+                                    {name || 'Unknown_Entity'}
+                                </h1>
+                                <div className="text-lg font-mono text-text-dim tracking-widest mb-6">
+                                    ${ticker || 'NULL'}
                                 </div>
-                                <input
-                                    type="range"
-                                    min="10"
-                                    max="90"
-                                    step="5"
-                                    value={100 - vaultPercent}
-                                    onChange={(e) => setVaultPercent(100 - Number(e.target.value))}
-                                    className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent"
-                                />
-                            </div>
-                            {/* Vault / Liquidity */}
-                            <div>
-                                <div className="flex justify-between text-xs mb-1.5">
-                                    <span className="flex items-center gap-1">🔒 Agent Vault (Savings)</span>
-                                    <span>{vaultPercent}%</span>
-                                </div>
-                                <div className="w-full h-2 bg-text-dim/20 rounded-lg overflow-hidden">
-                                    <div className="h-full bg-accent/50" style={{ width: `${vaultPercent}%` }} />
-                                </div>
-                                <p className="text-[10px] text-text-dim mt-1.5">
-                                    Funds in the Vault are protected by the TEE and used for buybacks or dividends.
-                                    Minimum 10% required.
+                                <p className="text-text-secondary leading-relaxed font-light">
+                                    {description || "Awaiting neural pattern definition..."}
                                 </p>
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Funding Target */}
-                    <div>
-                        <label className="block text-sm font-medium text-text-primary mb-1.5">Funding Target (BNB)</label>
-                        <input
-                            type="number"
-                            value={target}
-                            onChange={(e) => setTarget(e.target.value)}
-                            step="0.1"
-                            min="0.0001"
-                            className="w-full h-11 px-4 rounded-lg bg-card border border-border-subtle text-sm font-mono text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent transition-colors"
-                        />
-                        <p className="text-xs text-text-dim mt-1.5">Amount needed to graduate to DEX.</p>
-                    </div>
-
-                    {/* Launch Settings (Initial Buy) */}
-                    <div className="p-5 rounded-xl border border-accent/20 bg-accent/5">
-                        <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
-                            🚀 Launch Strategy
-                        </h3>
-
-                        {/* Initial Buy Slider */}
-                        <div className="mb-4">
-                            <div className="flex justify-between items-center mb-2">
-                                <label className="text-sm font-medium text-text-primary">Initial Buy / Snipe</label>
-                                <span className="text-xs font-mono text-accent">
-                                    {(initialBuyPercent * 100).toFixed(0)}%
-                                    ({initialBuyAmount} BNB)
-                                </span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                step="1"
-                                value={initialBuyPercent * 100}
-                                onChange={(e) => setInitialBuyPercent(Number(e.target.value) / 100)}
-                                className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent"
-                            />
-                            <div className="flex justify-between items-center mt-2 text-xs text-text-dim">
-                                <span>Community Launch (0%)</span>
-                                <span>Instant (100%)</span>
+                            <div className="mt-8 pt-8 border-t border-white/5">
+                                <div className="flex justify-between items-end">
+                                    <div className="text-xs text-text-dim uppercase tracking-widest">Initial Stake</div>
+                                    <div className="text-2xl font-mono text-white">{initialBuy} BNB</div>
+                                </div>
                             </div>
                         </div>
-
-                        <div className="text-xs text-text-secondary leading-relaxed">
-                            {initialBuyPercent === 0 ? (
-                                <span dangerouslySetInnerHTML={{ __html: "🐣 <span class='font-bold text-white'>Incubator Mode:</span> You create the agent for free (gas only). The community funds it to launch." }} />
-                            ) : initialBuyPercent === 1 ? (
-                                <span dangerouslySetInnerHTML={{ __html: "🚀 <span class='font-bold text-white'>Instant Mode:</span> You fund the entire target. Agents launches immediately to DEX." }} />
-                            ) : (
-                                <span dangerouslySetInnerHTML={{ __html: "⚡ <span class='font-bold text-white'>Snipe Mode:</span> You buy a portion of the supply upfront. The community finishes the raise." }} />
-                            )}
-                        </div>
                     </div>
-
-                    {/* Image upload area */}
-                    <div>
-                        <label className="block text-sm font-medium text-text-primary mb-1.5">Agent Image</label>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            ref={fileInputRef}
-                            onChange={handleImageChange}
-                        />
-                        <div
-                            onClick={() => fileInputRef.current?.click()}
-                            className="border-2 border-dashed border-border-subtle rounded-xl p-8 text-center hover:border-accent/50 hover:bg-accent/5 transition-all cursor-pointer relative overflow-hidden group"
-                        >
-                            {imagePreview ? (
-                                <div className="relative z-10">
-                                    <img src={imagePreview} alt="Preview" className="h-32 w-32 object-cover rounded-lg mx-auto shadow-lg mb-2" />
-                                    <p className="text-xs text-accent font-medium">Click to change image</p>
-                                </div>
-                            ) : (
-                                <div className="group-hover:scale-105 transition-transform">
-                                    <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center mx-auto mb-3 text-text-secondary group-hover:text-accent transition-colors">
-                                        <Upload className="w-6 h-6" />
-                                    </div>
-                                    <p className="text-sm text-text-secondary font-medium">Click to upload or drag & drop</p>
-                                    <p className="text-xs text-text-dim mt-1">PNG, JPG or GIF. Max 5MB.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
                 </div>
 
-                {/* Preview Column (2 cols) */}
-                <div className="lg:col-span-2">
-                    <div className="sticky top-20">
-                        <h3 className="text-sm font-semibold text-text-secondary mb-3 uppercase tracking-wider">Preview</h3>
-                        <div className="rounded-xl border border-border-subtle bg-card p-4 hover:border-border-hover transition-colors">
-                            <div className="flex gap-3 mb-3">
-                                {imagePreview ? (
-                                    <img src={imagePreview} alt="Token" className="w-12 h-12 rounded-lg object-cover" />
-                                ) : (
-                                    <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center text-lg font-bold text-accent">
-                                        {ticker ? ticker.charAt(0) : '?'}
+                {/* Interaction Side */}
+                <div className="order-1 lg:order-2">
+
+                    {currentStep === 'mode' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                                    <Hammer className="w-6 h-6 text-accent" />
+                                    The Forge
+                                </h2>
+                                <p className="text-text-secondary">Choose your launch integrity protocol.</p>
+                            </div>
+
+                            <div className="grid gap-4">
+                                <button
+                                    onClick={() => { setLaunchMode('instant'); setCurrentStep('manifesto') }}
+                                    className="group relative p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-accent/50 transition-all text-left"
+                                >
+                                    <div className="flex items-center gap-4 mb-2">
+                                        <div className="p-3 rounded-xl bg-accent/20 text-accent group-hover:bg-accent group-hover:text-white transition-colors">
+                                            <Rocket className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <div className="text-lg font-bold text-white">Instant Launch</div>
+                                            <div className="text-xs text-text-dim font-mono">PUMP_PROTOCOL_V1</div>
+                                        </div>
                                     </div>
-                                )}
-                                <div>
-                                    <h3 className="font-semibold text-sm">{name || 'Agent Name'}</h3>
-                                    <span className="text-xs text-text-dim font-mono">${ticker || 'TICKER'}</span>
+                                    <p className="text-sm text-text-secondary pl-[60px]">
+                                        Deploy immediately. Bonding curve active. Traders ready. No waiting.
+                                    </p>
+                                </button>
+
+                                <button
+                                    onClick={() => { setLaunchMode('incubator'); setCurrentStep('manifesto') }}
+                                    className="group relative p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-blue-400/50 transition-all text-left"
+                                >
+                                    <div className="flex items-center gap-4 mb-2">
+                                        <div className="p-3 rounded-xl bg-blue-500/20 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                                            <Egg className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <div className="text-lg font-bold text-white">Incubator Launch</div>
+                                            <div className="text-xs text-text-dim font-mono">GENESIS_FACTORY</div>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-text-secondary pl-[60px]">
+                                        Public incubation. Gather supporters before the curve goes live.
+                                    </p>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentStep === 'manifesto' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
+                            <div>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <h2 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                                            {launchMode === 'instant' ? <Rocket className="w-6 h-6 text-accent" /> : <Egg className="w-6 h-6 text-blue-400" />}
+                                            {launchMode === 'instant' ? 'Instant Launch' : 'Incubator'}
+                                        </h2>
+                                        <p className="text-text-secondary">Define the parameters of your autonomous agent.</p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            const p = MOCK_PERSONAS[Math.floor(Math.random() * MOCK_PERSONAS.length)]
+                                            setName(p.name)
+                                            setTicker(p.ticker)
+                                            setDescription(p.description)
+                                        }}
+                                        className="text-xs flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-accent transition-colors border border-accent/20 hover:border-accent/50"
+                                    >
+                                        <RefreshCw className="w-3 h-3" /> Randomize
+                                    </button>
                                 </div>
                             </div>
-                            <p className="text-xs text-text-secondary leading-relaxed mb-3 line-clamp-3">
-                                {description || 'Agent description will appear here...'}
+
+
+                            <div className="space-y-5">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input
+                                        value={name} onChange={e => setName(e.target.value)}
+                                        placeholder="Agent Name"
+                                        className="bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white focus:border-accent outline-none transition-colors"
+                                    />
+                                    <input
+                                        value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())}
+                                        placeholder="$TICKER"
+                                        maxLength={8}
+                                        className="bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white font-mono focus:border-accent outline-none transition-colors"
+                                    />
+                                </div>
+                                <textarea
+                                    value={description} onChange={e => setDescription(e.target.value)}
+                                    placeholder="Manifesto / Description..."
+                                    className="w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white focus:border-accent outline-none transition-colors h-32 resize-none"
+                                />
+
+                                {/* Allocation Strategy */}
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <span className="text-sm font-bold text-white">Capital Allocation</span>
+                                        <span className="text-xs text-text-dim">Vault: {vaultPercent}% | Ops: {100 - vaultPercent}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="10"
+                                        max="90"
+                                        step="5"
+                                        value={vaultPercent}
+                                        onChange={(e) => setVaultPercent(Number(e.target.value))}
+                                        className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent"
+                                    />
+                                    <p className="text-[10px] text-text-dim mt-2 leading-tight">
+                                        {vaultPercent}% of raised funds are locked in the TEE Vault for buybacks.
+                                        {100 - vaultPercent}% goes to the creator (Ops).
+                                    </p>
+                                </div>
+
+                                <div className="flex gap-4 items-center">
+                                    <div
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="w-16 h-16 rounded-2xl bg-surface border border-dashed border-white/20 flex items-center justify-center cursor-pointer hover:border-accent hover:text-accent transition-colors text-white/30"
+                                    >
+                                        {imagePreview ? <img src={imagePreview} className="w-full h-full object-cover rounded-2xl" /> : <Upload className="w-6 h-6" />}
+                                        <input ref={fileInputRef} type="file" className="hidden" onChange={handleImageChange} />
+                                    </div>
+                                    <div className="text-xs text-text-dim">
+                                        Upload Avatar<br />(Optional)
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => setCurrentStep('pledge')}
+                                disabled={!name || !ticker}
+                                className="w-full py-5 bg-white text-black rounded-2xl font-bold text-lg hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                Continue <ArrowRight className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
+
+                    {currentStep === 'pledge' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
+                            <div>
+                                <ButtonBack onClick={() => {
+                                    if (currentStep === 'pledge') setCurrentStep('manifesto')
+                                    else setCurrentStep('mode') // Back logic fix
+                                }} />
+                                <h2 className="text-3xl font-bold text-white mb-2 mt-4">Initial Pledge</h2>
+                                <p className="text-text-secondary">Secure an early stake in {name}.</p>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        value={initialBuy} onChange={e => setInitialBuy(e.target.value)}
+                                        className="w-full bg-[#050505] border border-white/10 rounded-[24px] py-6 px-8 text-4xl font-mono text-white focus:border-accent outline-none transition-colors text-center"
+                                    />
+                                    <span className="absolute top-1/2 -translate-y-1/2 right-8 text-text-dim font-bold">BNB</span>
+                                </div>
+
+                                <div className="grid grid-cols-4 gap-3">
+                                    {['0', '0.1', '0.5', '1.0'].map(amt => (
+                                        <button
+                                            key={amt}
+                                            onClick={() => setInitialBuy(amt)}
+                                            className={`py-4 rounded-xl font-mono text-sm border transition-all ${initialBuy === amt ? 'border-accent bg-accent/20 text-white shadow-[0_0_15px_-5px_var(--accent)]' : 'border-white/10 bg-surface text-text-dim hover:text-white hover:border-white/30'}`}
+                                        >
+                                            {amt === '0' ? 'SKIP' : `${amt} BNB`}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleCreateProposal}
+                                className="w-full py-5 bg-accent text-white rounded-[24px] font-bold text-lg hover:scale-[1.02] shadow-[0_0_20px_-5px_rgba(124,58,237,0.5)] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                            >
+                                <Zap className="w-5 h-5 fill-current" />
+                                {parseFloat(initialBuy) > 0 ? `Launch & Buy (${initialBuy} BNB)` : 'Launch Sequence (Gas Only)'}
+                            </button>
+                        </div>
+                    )}
+
+                    {currentStep === 'launching' && (
+                        <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-500">
+                            <div className="relative mb-8">
+                                <div className="absolute inset-0 bg-accent blur-[40px] opacity-40 animate-pulse" />
+                                <div className="relative w-24 h-24 rounded-full bg-[#050505] border border-accent flex items-center justify-center">
+                                    {isConfirming || isPending ? (
+                                        <Loader2 className="w-10 h-10 text-accent animate-spin" />
+                                    ) : (
+                                        <CheckCircle2 className="w-10 h-10 text-success" />
+                                    )}
+                                </div>
+                            </div>
+
+                            <h2 className="text-2xl font-bold text-white mb-2">
+                                {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Deploying to Lattice...' : 'Launch Successful!'}
+                            </h2>
+                            <p className="text-text-dim font-mono text-sm max-w-xs">
+                                {pendingProposalId ? 'Finalizing initial pledge transaction...' : 'Initializing TEE Handshake...'}
                             </p>
-                            <div className="mb-3">
-                                <div className="flex justify-between items-center mb-1.5">
-                                    <span className="text-xs text-text-dim">Bonding progress</span>
-                                    <span className="text-xs font-mono text-accent">{(initialBuyPercent * 100).toFixed(0)}%</span>
-                                </div>
-                                <div className="w-full h-1.5 bg-surface rounded-full overflow-hidden">
-                                    <div className="h-full bg-accent" style={{ width: `${initialBuyPercent * 100}%` }} />
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-mono text-text-primary">$0</span>
-                                <span className="text-xs text-text-dim">Target: {target} BNB</span>
-                            </div>
                         </div>
-                    </div>
+                    )}
+
                 </div>
-            </div>
-
-            {/* Sticky Action Bar */}
-            <div className="fixed bottom-0 left-0 right-0 bg-surface/80 backdrop-blur-md border-t border-border-subtle p-4 z-50 lg:hidden">
-                <button
-                    onClick={step === 1 ? handleCreate : handlePledge}
-                    disabled={isPending || isConfirming || (step === 2 && !pendingProposalId)}
-                    className="w-full py-3.5 rounded-lg bg-accent text-black text-sm font-bold hover:bg-accent-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-accent/20 border border-accent"
-                >
-                    {step === 1 ? (
-                        isPending ? 'Confirming...' :
-                            isConfirming ? 'Launching...' :
-                                !isConnected ? 'Connect & Launch' :
-                                    chainId !== 97 ? 'Switch Network' :
-                                        'Launch Agent 🚀'
-                    ) : (
-                        isPending ? 'Confirming...' : `Buy & Complete Launch`
-                    )}
-                </button>
-            </div>
-
-            {/* Desktop Action Button (stays in flow) */}
-            <div className="hidden lg:block mt-8 text-center pb-8">
-                <button
-                    onClick={step === 1 ? handleCreate : handlePledge}
-                    disabled={isPending || isConfirming || (step === 2 && !pendingProposalId)}
-                    className="w-full max-w-2xl mx-auto py-4 rounded-xl bg-accent text-black text-lg font-bold hover:bg-accent-dim transition-all hover:scale-[1.02] shadow-xl shadow-accent/10 disabled:opacity-50 disabled:cursor-not-allowed border border-accent"
-                >
-                    {step === 1 ? (
-                        isPending ? 'Confirm in Wallet...' :
-                            isConfirming ? 'Deploying Agent...' :
-                                !isConnected ? 'Connect Wallet to Launch' :
-                                    chainId !== 97 ? 'Switch to BSC Testnet' :
-                                        'Launch Agent 🚀'
-                    ) : (
-                        isPending ? 'Confirming Purchase...' : `Fund ${initialBuyAmount} BNB & Finish`
-                    )}
-                </button>
             </div>
         </div>
+    )
+}
+
+function ButtonBack({ onClick }: { onClick: () => void }) {
+    return (
+        <button onClick={onClick} className="text-xs text-text-dim hover:text-white flex items-center gap-1 transition-colors">
+            ← Back
+        </button>
     )
 }

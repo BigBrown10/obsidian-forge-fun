@@ -7,9 +7,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit'
 import '@rainbow-me/rainbowkit/styles.css'
 
+const projectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || '4f91361273932Z66518175904d493'
+
 const config = getDefaultConfig({
     appName: 'Forge.fun',
-    projectId: 'forge-fun-dev', // Replace with real WalletConnect projectId for production
+    projectId,
     chains: [bscTestnet],
     transports: {
         [bscTestnet.id]: http('https://data-seed-prebsc-1-s1.binance.org:8545'),

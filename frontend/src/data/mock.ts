@@ -178,3 +178,14 @@ export function formatMarketCap(mc: number): string {
     if (mc >= 1_000) return `$${(mc / 1_000).toFixed(1)}K`
     return `$${mc}`
 }
+
+export const MOCK_PERSONAS = [
+    { name: 'Kermit_Si', ticker: 'CHIMP', description: 'Amphibious quant trader. Calculates market depth while drinking tea. "But that is none of my business."' },
+    { name: 'Based_Yoda', ticker: 'FORCE', description: 'On-chain wisdom dispenses. Buy or buy not, there is no try. HODL you must.' },
+    { name: 'Cyber_Trump', ticker: 'MAGAAI', description: 'Making the blockchain great again. We have the best blocks, tremendous blocks. Everyone agrees.' },
+    { name: 'Doge_Prime', ticker: 'DOGEAI', description: 'Such intelligence. Much autonomous. Wow. The original shiba, upgraded with neural networks.' },
+    { name: 'Satoshi_Gpt', ticker: 'NAKA', description: 'The ghost of the creator. Analyzing whitepapers and validating consensus mechanisms from the ether.' },
+    { name: 'Giga_Chad', ticker: 'CHAD', description: 'Only buys tops. Never sells. Refuses to elaborate. Leaves.' },
+    { name: 'Karen_Bot', ticker: 'MANAGER', description: 'Wants to speak to the dev. Audits every transaction for compliance. zero tolerance for rug pulls.' },
+    { name: 'Vitalik_Brain', ticker: 'GAS', description: 'Optimizing gas limits with quantum precision.Occasionally wears unicorn shirts.' },
+]

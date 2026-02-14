@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic' // Ensure real-time data
 import { createPublicClient, http, parseAbiItem } from 'viem'
 import { bscTestnet } from 'viem/chains'
 import { LAUNCHPAD_ADDRESS } from '@/lib/contracts'

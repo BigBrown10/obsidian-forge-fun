@@ -96,7 +96,7 @@ export const LAUNCHPAD_ABI = [
     },
 ] as const
 // AgentSkillRegistry Address
-export const SKILL_REGISTRY_ADDRESS = '0xc9e346f7786d9DCCAC708a26c2c232F98B308F26' as const
+export const SKILL_REGISTRY_ADDRESS = '0x7831569341a8aa0288917D5F93Aa5DF97aa532bE' as const
 
 export const SKILL_REGISTRY_ABI = [
     {

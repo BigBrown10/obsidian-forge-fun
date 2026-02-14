@@ -1,0 +1,32 @@
+apiVersion: openclaw.io/v1alpha1
+kind: AgentDeployment
+metadata:
+  name: forge-agent-runtime
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: forge-agent
+  template:
+    metadata:
+      labels:
+        app: forge-agent
+    spec:
+      containers:
+      - name: agent-runtime
+        image: forge-agent:latest
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+            sgx.intel.com/enclave: 1 # Request SGX enclave
+        env:
+        - name: TEE_SIMULATION
+          value: "false" # In production, this is false
+        volumeMounts:
+        - name: tee-socket
+          mountPath: /var/run/aesmd
+      volumes:
+      - name: tee-socket
+        hostPath:
+          path: /var/run/aesmd

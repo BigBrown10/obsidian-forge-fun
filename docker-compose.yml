@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  agent-runtime:
+    build:
+      context: ./backend
+      target: runner
+    environment:
+      - NODE_ENV=production
+      - TEE_SIMULATION=true
+      - TEE_SECRET_KEY=dev-secret-key
+    volumes:
+      - ./backend/src:/app/src
+    command: [ "npm", "start" ]
+    # simulating a "node" in the cluster
+    networks:
+      - openclaw-net
+
+networks:
+  openclaw-net:
+    driver: bridge
