@@ -76,14 +76,14 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
     const isLive = agent.launched || agent.bondingProgress >= 100
 
     return isLive
-        ? <LiveTradingView agent={agent} logs={logs} setLogs={setLogs} />
+        ? <LiveTradingView agent={agent} logs={logs} setLogs={setLogs} isCreator={isCreator} />
         : <ICOLaunchView agent={agent} />
 }
 
 // ----------------------------------------------------------------------
 // 1. LIVE TRADING VIEW (The Trenches)
 // ----------------------------------------------------------------------
-function LiveTradingView({ agent, logs, setLogs }: { agent: Agent, logs: any[], setLogs: (l: any[]) => void }) {
+function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, logs: any[], setLogs: (l: any[]) => void, isCreator: boolean }) {
     const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy')
     const [amount, setAmount] = useState('')
 
