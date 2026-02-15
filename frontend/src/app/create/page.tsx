@@ -141,7 +141,14 @@ export default function CreateAgent() {
                 }
             } else if (pendingProposalId) {
                 // Step 2 Success: Pledge Complete
-                setTimeout(() => router.push(`/agent/${ticker}`), 2000)
+                fetch('/api/sync-registry', { method: 'POST' })
+                    .then(() => {
+                        setTimeout(() => router.push(`/agent/${ticker}`), 1000)
+                    })
+                    .catch(e => {
+                        console.error("Sync failed", e)
+                        setTimeout(() => router.push(`/agent/${ticker}`), 2000)
+                    })
             }
         }
     }, [isSuccess, currentStep, proposalCount, pendingProposalId, initialBuy, ticker, router])

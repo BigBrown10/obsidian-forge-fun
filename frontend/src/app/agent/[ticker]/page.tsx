@@ -33,10 +33,32 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
 
     useEffect(() => {
         if (resolvedParams) {
-            getAgentByTicker(resolvedParams.ticker).then(data => {
-                setAgent(data)
-                setLoading(false)
-            })
+            let retries = 0
+            const maxRetries = 15 // 30 seconds total wait
+
+            const fetchAgent = () => {
+                getAgentByTicker(resolvedParams.ticker)
+                    .then(data => {
+                        if (data) {
+                            setAgent(data)
+                            setLoading(false)
+                        } else if (retries < maxRetries) {
+                            retries++
+                            setTimeout(fetchAgent, 2000)
+                        } else {
+                            setLoading(false) // Trigger Signal Lost
+                        }
+                    })
+                    .catch(() => {
+                        if (retries < maxRetries) {
+                            retries++
+                            setTimeout(fetchAgent, 2000)
+                        } else {
+                            setLoading(false)
+                        }
+                    })
+            }
+            fetchAgent()
         }
     }, [resolvedParams])
 
