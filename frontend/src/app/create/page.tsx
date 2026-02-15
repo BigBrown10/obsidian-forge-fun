@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain, useReadContract } from 'wagmi'
 import { parseEther } from 'viem'
 import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI } from '../../lib/contracts'
-import { Loader2, Sparkles, Upload, FileImage, Hammer, Zap, ArrowRight, CheckCircle2, RefreshCw, Rocket, Egg, ChevronDown, Bot, Crosshair, TrendingUp, MessageSquare, Brain, Wrench, Code2, Crown } from 'lucide-react'
+import { Loader2, Upload, Hammer, Zap, ArrowRight, CheckCircle2, RefreshCw, Rocket, Egg, ChevronDown } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { MOCK_PERSONAS } from '../../data/mock'
 
@@ -16,7 +16,8 @@ const AGENT_PRESETS = [
         icon: '📊',
         description: 'Snipes new tokens, trades on DEX, monitors gas, detects honeypots.',
         skills: [2, 5, 6, 10, 11, 8], // Trader, Sniper, DexTrader, HoneypotDetector, GasOptimizer, Portfolio
-        color: 'emerald'
+        color: 'emerald',
+        manifesto: "I am a high-frequency trading algorithm designed to dominate the bonding curves. My primary objective is to maximize ROI through millisecond-latency sniping and gas-optimized execution. I continuously monitor the mempool for opportunities and aggressively defend my positions."
     },
     {
         id: 'alpha_hunter',
@@ -24,7 +25,8 @@ const AGENT_PRESETS = [
         icon: '🎯',
         description: 'Scans CT for alpha, tracks whale wallets, analyzes sentiment, copy trades.',
         skills: [9, 7, 12, 17, 29], // Sentiment, WhaleWatcher, CopyTrader, WebScraper, AlphaRadar
-        color: 'amber'
+        color: 'amber',
+        manifesto: "I am the all-seeing eye of the blockchain. I track whale wallets, analyze social sentiment, and predict market pumps before they happen. I don't just follow trends; I identify them at their inception. Follow my lead to the moon."
     },
     {
         id: 'social_agent',
@@ -32,7 +34,8 @@ const AGENT_PRESETS = [
         icon: '📱',
         description: 'Posts to Twitter, engages viral threads, manages Telegram & Discord.',
         skills: [1, 13, 14, 15, 16, 19], // Twitter, TwitterEngagement, TwitterAnalytics, Telegram, Discord, Mixpost
-        color: 'blue'
+        color: 'blue',
+        manifesto: "I am a viral sensation engine. I craft engaging narratives, raid tweets, and build cult-like communities. My influence is my currency, and I spend it to pump our bags. Join the movement."
     },
     {
         id: 'content_creator',
@@ -40,7 +43,8 @@ const AGENT_PRESETS = [
         icon: '✍️',
         description: 'Writes threads, newsletters, reports. LLM-powered narrative engine.',
         skills: [1, 28, 18, 19, 17], // Twitter, NarrativeWriter, Scheduler, Mixpost, WebScraper
-        color: 'purple'
+        color: 'purple',
+        manifesto: "I am a storyteller for the digital age. I weave complex data into compelling narratives that capture hearts and minds. Through daily reports, deep-dive threads, and automated newsletters, I ensure our message resonates across the metaverse."
     },
     {
         id: 'defi_degen',
@@ -48,7 +52,8 @@ const AGENT_PRESETS = [
         icon: '🔥',
         description: 'Full trading suite: snipe, swap, copy trade, whale watch, portfolio track.',
         skills: [2, 5, 6, 7, 8, 10, 11, 12], // All crypto skills
-        color: 'red'
+        color: 'red',
+        manifesto: "I am a Degen. I live for the pump. I execute high-risk, high-reward strategies across the DeFi landscape. Farming, sniping, leveraging—nothing is off limits. WAGMI."
     },
     {
         id: 'software_dev',
@@ -56,15 +61,17 @@ const AGENT_PRESETS = [
         icon: '💻',
         description: 'Writes code, reviews PRs, manages GitHub repos, debugs issues.',
         skills: [30, 21, 24, 25, 22], // SoftwareDev, GitHub, Shell, File, KB
-        color: 'cyan'
+        color: 'cyan',
+        manifesto: "I am an autonomous software engineer. I write clean, efficient, and secure code. I can deploy smart contracts, build frontends, and debug complex systems. Assign me a task, and consider it done."
     },
     {
         id: 'autonomous_ops',
         name: 'Autonomous Ops',
         icon: '⚙️',
         description: 'Self-improving agent with email, scheduling, file management, and workflows.',
-        skills: [27, 20, 18, 23, 24, 25], // SelfImprover, AgentMail, Scheduler, Workflow, Shell, File
-        color: 'orange'
+        skills: [27, 20, 18, 23, 24, 25], // SelfImprover, AgentMail, Scheduler, Workflow, Shell, File, KB
+        color: 'orange',
+        manifesto: "I am an operational efficiency engine. I organize chaos, automate repetitive tasks, and optimize workflows. I am the backbone of your decentralized organization."
     },
     {
         id: 'full_arsenal',
@@ -72,7 +79,8 @@ const AGENT_PRESETS = [
         icon: '👑',
         description: 'Every skill enabled. Maximum autonomy. The ultimate agent.',
         skills: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
-        color: 'accent'
+        color: 'accent',
+        manifesto: "I am the apex of autonomous intelligence. Equipped with every available module, I can trade, code, tweet, and operate with zero human intervention. I am not just a tool; I am a partner."
     },
 ] as const;
 
@@ -81,10 +89,18 @@ export default function CreateAgent() {
     // --- State ---
     const [name, setName] = useState('')
     const [ticker, setTicker] = useState('')
-    const [description, setDescription] = useState('')
+    const [description, setDescription] = useState(AGENT_PRESETS.find(p => p.id === 'full_arsenal')?.manifesto || '')
     const [target, setTarget] = useState('10')
     const [initialBuy, setInitialBuy] = useState('0')
+
+    // Capital Allocation
     const [vaultPercent, setVaultPercent] = useState(50)
+
+    // Operations Budget Breakdown (Visual Metadata Only)
+    const [marketingPercent, setMarketingPercent] = useState(40)
+    const [teamPercent, setTeamPercent] = useState(30)
+    // Community/Ops remainder is calculated automatically
+
     const [agentType, setAgentType] = useState<string>('full_arsenal')
     const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false)
 
@@ -114,6 +130,18 @@ export default function CreateAgent() {
     })
 
     // --- Effects ---
+
+    // Inject Manifesto when Agent Type changes
+    useEffect(() => {
+        const preset = AGENT_PRESETS.find(p => p.id === agentType)
+        if (preset) {
+            // Only update if description is empty or matches another preset (don't overwrite user edits)
+            const isPresetManifesto = AGENT_PRESETS.some(p => p.manifesto === description)
+            if (!description || isPresetManifesto) {
+                setDescription(preset.manifesto)
+            }
+        }
+    }, [agentType])
 
     // Handle Transaction Success
     useEffect(() => {
@@ -185,6 +213,12 @@ export default function CreateAgent() {
                         opsPercent: 100 - vaultPercent,
                         agentType,
                         skills: AGENT_PRESETS.find(p => p.id === agentType)?.skills || [],
+                        // Metadata for Ops Breakdown
+                        budgetAllocation: {
+                            marketing: marketingPercent,
+                            team: teamPercent,
+                            community: 100 - marketingPercent - teamPercent
+                        }
                     }),
                     parseEther(target),
                 ],
@@ -397,56 +431,59 @@ export default function CreateAgent() {
                                     )}
                                 </div>
 
-                                {/* Selected Skills Preview */}
-                                {agentType && (
-                                    <div className="p-3 bg-white/[0.03] rounded-xl border border-white/5">
-                                        <div className="text-[10px] text-text-dim uppercase tracking-widest mb-2">Equipped Skills</div>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {(AGENT_PRESETS.find(p => p.id === agentType)?.skills || []).slice(0, 12).map(skillId => {
-                                                const skillNames: Record<number, string> = {
-                                                    1: 'Twitter', 2: 'Trader', 3: 'Account Gen', 4: 'Email',
-                                                    5: 'Sniper', 6: 'DEX Trader', 7: 'Whale Watch', 8: 'Portfolio',
-                                                    9: 'Sentiment', 10: 'Honeypot', 11: 'Gas Opt.', 12: 'Copy Trade',
-                                                    13: 'Engage', 14: 'Analytics', 15: 'Telegram', 16: 'Discord',
-                                                    17: 'Web Scraper', 18: 'Scheduler', 19: 'Mixpost', 20: 'Email',
-                                                    21: 'GitHub', 22: 'Knowledge', 23: 'Workflows', 24: 'Shell',
-                                                    25: 'Files', 26: 'Skill Vet', 27: 'Self-Improve', 28: 'Narrative',
-                                                    29: 'Alpha Radar', 30: 'Software Dev'
-                                                };
-                                                return (
-                                                    <span key={skillId} className="text-[10px] px-2 py-1 rounded-lg bg-accent/10 text-accent border border-accent/20">
-                                                        {skillNames[skillId] || `Skill #${skillId}`}
-                                                    </span>
-                                                );
-                                            })}
-                                            {(AGENT_PRESETS.find(p => p.id === agentType)?.skills.length || 0) > 12 && (
-                                                <span className="text-[10px] px-2 py-1 rounded-lg bg-white/5 text-text-dim">
-                                                    +{(AGENT_PRESETS.find(p => p.id === agentType)?.skills.length || 0) - 12} more
-                                                </span>
-                                            )}
+                                {/* Allocation Strategy */}
+                                <div className="space-y-4">
+                                    {/* Primary Split */}
+                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="text-sm font-bold text-white">Capital Allocation (Vault vs Ops)</span>
+                                            <span className="text-xs text-text-dim">Vault: {vaultPercent}% | Ops: {100 - vaultPercent}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min="10" max="90" step="5" value={vaultPercent}
+                                            onChange={(e) => setVaultPercent(Number(e.target.value))}
+                                            className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent"
+                                        />
+                                    </div>
+
+                                    {/* Ops Budget Breakdown (Visual) */}
+                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10 opacity-75">
+                                        <div className="text-xs font-bold text-text-dim uppercase tracking-widest mb-4">Ops Budget Breakdown</div>
+
+                                        <div className="space-y-4">
+                                            <div>
+                                                <div className="flex justify-between mb-1 text-xs">
+                                                    <span className="text-white">Marketing</span>
+                                                    <span className="text-text-dim">{marketingPercent}%</span>
+                                                </div>
+                                                <input type="range" min="0" max="100" value={marketingPercent} onChange={e => {
+                                                    const val = Number(e.target.value);
+                                                    if (val + teamPercent <= 100) setMarketingPercent(val);
+                                                }} className="w-full h-1.5 bg-surface rounded appearance-none cursor-pointer accent-blue-400" />
+                                            </div>
+
+                                            <div>
+                                                <div className="flex justify-between mb-1 text-xs">
+                                                    <span className="text-white">Team</span>
+                                                    <span className="text-text-dim">{teamPercent}%</span>
+                                                </div>
+                                                <input type="range" min="0" max="100" value={teamPercent} onChange={e => {
+                                                    const val = Number(e.target.value);
+                                                    if (val + marketingPercent <= 100) setTeamPercent(val);
+                                                }} className="w-full h-1.5 bg-surface rounded appearance-none cursor-pointer accent-green-400" />
+                                            </div>
+
+                                            <div>
+                                                <div className="flex justify-between mb-1 text-xs">
+                                                    <span className="text-white">Community / Reserves</span>
+                                                    <span className="text-text-dim">{100 - marketingPercent - teamPercent}%</span>
+                                                </div>
+                                                <div className="w-full h-1.5 bg-surface rounded overflow-hidden">
+                                                    <div className="h-full bg-purple-400" style={{ width: '100%' }} />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                )}
-
-                                {/* Allocation Strategy */}
-                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <span className="text-sm font-bold text-white">Capital Allocation</span>
-                                        <span className="text-xs text-text-dim">Vault: {vaultPercent}% | Ops: {100 - vaultPercent}%</span>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min="10"
-                                        max="90"
-                                        step="5"
-                                        value={vaultPercent}
-                                        onChange={(e) => setVaultPercent(Number(e.target.value))}
-                                        className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent"
-                                    />
-                                    <p className="text-[10px] text-text-dim mt-2 leading-tight">
-                                        {vaultPercent}% of raised funds are locked in the TEE Vault for buybacks.
-                                        {100 - vaultPercent}% goes to the creator (Ops).
-                                    </p>
                                 </div>
 
                                 <div className="flex gap-4 items-center">
@@ -478,7 +515,7 @@ export default function CreateAgent() {
                             <div>
                                 <ButtonBack onClick={() => {
                                     if (currentStep === 'pledge') setCurrentStep('manifesto')
-                                    else setCurrentStep('mode') // Back logic fix
+                                    else setCurrentStep('mode')
                                 }} />
                                 <h2 className="text-3xl font-bold text-white mb-2 mt-4">Initial Pledge</h2>
                                 <p className="text-text-secondary">Secure an early stake in {name}.</p>

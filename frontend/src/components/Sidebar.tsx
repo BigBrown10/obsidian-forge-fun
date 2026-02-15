@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, Egg, Hammer, User, Settings, LogOut, Github, Twitter } from 'lucide-react'
+import { LayoutGrid, Egg, Hammer, User, Settings, LogOut, Github, Twitter, Rocket } from 'lucide-react'
 import { twMerge } from 'tailwind-merge'
 import { clsx, type ClassValue } from 'clsx'
 import HardwareConnect from './HardwareConnect'
@@ -14,7 +14,7 @@ function cn(...inputs: ClassValue[]) {
 
 const NAV_ITEMS = [
     { name: 'The Trenches', href: '/', icon: LayoutGrid },
-    { name: 'Incubator', href: '/incubator', icon: Egg },
+    { name: 'Launchpad', href: '/launchpad', icon: Rocket },
     { name: 'Profile', href: '/profile', icon: User },
 ]
 

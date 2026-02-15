@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import HardwareConnect from './HardwareConnect'
-import { Plus, Menu, X, LayoutGrid, Egg, User } from 'lucide-react'
+import { Plus, Menu, X, LayoutGrid, Egg, User, Rocket } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { twMerge } from 'tailwind-merge'
 import { clsx, type ClassValue } from 'clsx'
@@ -15,7 +15,7 @@ function cn(...inputs: ClassValue[]) {
 
 const NAV_ITEMS = [
     { name: 'The Trenches', href: '/', icon: LayoutGrid },
-    { name: 'Incubator', href: '/incubator', icon: Egg },
+    { name: 'Launchpad', href: '/launchpad', icon: Rocket },
     { name: 'Profile', href: '/profile', icon: User },
 ]
 

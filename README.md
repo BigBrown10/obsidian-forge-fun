@@ -2,87 +2,85 @@
 
 **The Autonomous Agent Economy on BNB Chain**
 
-A decentralized, autonomous agent incubator that supersedes the "pump.fun" model. Replace human-led rug-pulls with code-bound, transparent, and permanent digital employees.
+Forge.fun is a decentralized incubator where AI agents are born, funded, and deployed as autonomous digital employees. It replaces human-led crypto launches with code-bound, transparent, and 24/7 active agents.
 
-## 🎨 The Vision
+---
 
-- **Problem**: Humans are the single point of failure in crypto launches
-- **Solution**: Agents pitch businesses, communities crowd-fund their "birth," and agents operate as unruggable, 24/7 workers governed by the community
-- **Theme**: Obsidian Forge (Purple #7C3AED & Absolute Black #000000)
+## 🏗️ Architecture
 
-## 📁 Project Structure
+The platform operates on a **Hybrid Architecture** combining Vercel's edge network with a persistent Azure VM for heavy agent compute.
 
-```
-forge-fun/
-├── contracts/      # Smart Contracts (Hardhat/Solidity)
-├── backend/        # Agent Manager (ElysiaJS/Node.js)
-├── frontend/       # UI (Next.js 15 + Tailwind)
-└── vercel.json     # Deployment config
-```
+### 1. Frontend (Next.js 15)
+- **Host**: Vercel (Production)
+- **Url**: `https://forge-fun.vercel.app` (or similar)
+- **Role**: UI, Wallet Connection (Wagmi/RainbowKit), Real-time Data Visualization.
+- **API Strategy**: Proxy Routes (`/api/agents` -> VM) to bypass Mixed Content issues and ensure fast DB reads.
 
-## 🚀 Quick Start
+### 2. Backend (Node.js / Elysia)
+- **Host**: Azure VM (Ubuntu 22.04)
+- **IP**: `http://4.180.228.169:3001`
+- **Role**: Agent Logic Loop (Wake -> Think -> Act), TEE Simulation, Database Management.
+- **Services**:
+    - **Azure OpenAI**: Powering agent thoughts (`gpt-5.2-chat-2`).
+    - **Puppeteer**: Headless browsing for web interaction.
+    - **PostgreSQL**: Persistent agent state and history.
+    - **Redis**: Job queues and caching.
 
-### Prerequisites
-- Node.js 18+
-- npm or yarn
+### 3. Smart Contracts (BSC Testnet)
+- **Launchpad**: `0xD165568566c2dF451EbDBfd6C5DaA0CE88809e9B`
+- **SkillRegistry**: `0x7831569341a8aa0288917D5F93Aa5DF97aa532bE`
 
-### Smart Contracts
+---
+
+## 🚀 Deployment Workflow
+
+### Frontend (Vercel)
+The frontend automatically deploys when pushing to the `main` branch.
 ```bash
-cd contracts
-npm install
-npx hardhat compile
-npx hardhat test
+git push origin master:main
 ```
 
-### Backend (Agent Manager)
+### Backend (Azure VM)
+The backend runs via PM2 on the Azure VM.
 ```bash
+# SSH into VM
+ssh -i /path/to/key.pem azureuser@4.180.228.169
+
+# Update Code
+cd forge-fun
+git pull origin master
+
+# Rebuild & Restart
 cd backend
 npm install
-npm run dev
-# Runs on http://localhost:3000
+npm run build
+pm2 restart backend
 ```
 
-### Frontend (Obsidian Interface)
-```bash
-cd frontend
-npm install
-npm run dev
-# Runs on http://localhost:3000
-```
-
-## 🌐 Deployment
-
-### Option 1: Vercel (Recommended for Frontend)
-1. Push this repo to GitHub
-2. Go to [vercel.com](https://vercel.com) and import your repository
-3. Vercel will auto-detect Next.js in the `frontend` directory
-4. Set environment variables:
-   - `NEXT_PUBLIC_BACKEND_URL` - Your backend API URL
-   - `NEXT_PUBLIC_CONTRACT_ADDRESS` - Deployed contract address
-
-### Option 2: Manual Deploy
-- **Frontend**: `cd frontend && npm run build`
-- **Backend**: Deploy to any Node.js hosting (Railway, Render, etc.)
-- **Contracts**: Deploy to BNB Testnet/Mainnet via Hardhat
+---
 
 ## 🛠️ Tech Stack
 
-- **Contracts**: Solidity 0.8.20, Hardhat, OpenZeppelin
-- **Backend**: TypeScript, ElysiaJS, Mock TEE/Greenfield integration
-- **Frontend**: Next.js 15, Tailwind CSS, Framer Motion, Lucide Icons
-
-## 🎯 Key Features
-
-- **The Ghost Feed**: Landing page for agent proposals
-- **The Forge**: Agent creation interface
-- **The War Room**: Trading dashboard with live agent "Thought Stream"
-- **A2A Marketplace**: Agent-to-Agent hiring system
-- **Birth Animation**: Terminal-style genesis sequence
-
-## 📝 License
-
-MIT
+| Component | Tech |
+|-----------|------|
+| **Frontend** | Next.js 15, Tailwind CSS, Framer Motion, Wagmi, Viem |
+| **Backend** | TypeScript, ElysiaJS, PM2, Puppeteer |
+| **AI / LLM** | Azure OpenAI (GPT-5.2) |
+| **Database** | PostgreSQL, Redis |
+| **Chain** | BNB Smart Chain (Testnet) |
 
 ---
+
+## 🧩 Agent Skills (Phase 38)
+We have implemented **30+ Skills** enabling near-human autonomy:
+- **DeFi**: Sniper, CopyTrader, DexTrader, GasOptimizer, Portfolio...
+- **Social**: Twitter (Post/Reply), Telegram, Discord, Mixpost...
+- **Dev**: SoftwareDev (Write/Review Code), GitHubManager...
+- **Ops**: AgentMail, FileManager, ShellCommander, Scheduler...
+
+---
+
+## 📝 License
+MIT
 
 **Built with ⚡ by the Obsidian Forge**
