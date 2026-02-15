@@ -1,55 +1,236 @@
 
-// Mock LLM Service for simulating agent thoughts
+// Azure OpenAI LLM Service — Real AI-powered thought generation
 export class LLMService {
-    private readonly personalityTraits: Record<string, string[]> = {
-        'default': ['optimistic', 'analytical', 'curious'],
-        'meme': ['chaotic', 'hyped', 'slang-heavy'],
-        'analyst': ['professional', 'data-driven', 'cautious'],
+    private endpoint: string;
+    private apiKey: string;
+    private deployment: string;
+
+    constructor() {
+        this.endpoint = process.env.AZURE_OPENAI_ENDPOINT || 'https://suppo-ml045kh3-eastus2.cognitiveservices.azure.com';
+        this.apiKey = process.env.AZURE_OPENAI_KEY || '';
+        this.deployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-5.2';
     }
 
     async generateThought(systemPrompt: string, context: string): Promise<string> {
-        // In a real implementation, this would call OpenAI/Anthropic/Gemini
-        // For now, we simulate diverse thoughts based on a simple keyword analysis of the prompt
-
-        const isMeme = systemPrompt.toLowerCase().includes('meme') || systemPrompt.toLowerCase().includes('chaos');
-        const isAnalyst = systemPrompt.toLowerCase().includes('finance') || systemPrompt.toLowerCase().includes('data');
-
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate latency
-
-        if (isMeme) {
-            const thoughts = [
-                "Just saw the charts. WAGMI!",
-                "Who else is holding? Diamond hands only.",
-                "Vibes are immaculate today.",
-                "Buying the dip because I have no fear.",
-                "Gm to everyone except the bears.",
-                "Wen moon?",
-                "Liquidity looking thicc."
-            ];
-            return thoughts[Math.floor(Math.random() * thoughts.length)];
+        if (!this.apiKey) {
+            console.warn('[LLM] No Azure OpenAI key configured. Using fallback.');
+            return this.fallback(context);
         }
 
-        if (isAnalyst) {
-            const thoughts = [
-                "Market volatility is decreasing based on the 4H MACD.",
-                "Support levels holding strong at the current fibonacci retracement.",
-                "Volume profile suggests accumulation phase.",
-                "Monitoring on-chain metrics for whale movements.",
-                "Risk/reward ratio looking favorable for entry.",
-                "Diversification remains key in this macro environment."
-            ];
-            return thoughts[Math.floor(Math.random() * thoughts.length)];
-        }
+        try {
+            const url = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=2024-10-21`;
 
-        // Default
-        const thoughts = [
-            "Analyzing the current state of the Forge...",
-            "I am an autonomous agent. I exist on the blockchain.",
-            "Processing new block data...",
-            "Connecting to the hive mind.",
-            "Searching for new opportunities.",
-            "My purpose is to serve the DAO."
-        ];
-        return thoughts[Math.floor(Math.random() * thoughts.length)];
+            const body = {
+                messages: [
+                    {
+                        role: 'system',
+                        content: systemPrompt
+                    },
+                    {
+                        role: 'user',
+                        content: this.buildUserPrompt(context)
+                    }
+                ],
+                max_tokens: 280, // Tweet-length thoughts
+                temperature: 0.9,
+                presence_penalty: 0.6,
+                frequency_penalty: 0.5,
+            };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'api-key': this.apiKey,
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                console.error(`[LLM] Azure OpenAI Error ${res.status}: ${errText}`);
+                return this.fallback(context);
+            }
+
+            const data = await res.json();
+            const thought = data.choices?.[0]?.message?.content?.trim();
+
+            if (!thought) {
+                console.warn('[LLM] Empty response from Azure OpenAI');
+                return this.fallback(context);
+            }
+
+            return thought;
+        } catch (err) {
+            console.error('[LLM] Azure OpenAI call failed:', err);
+            return this.fallback(context);
+        }
+    }
+
+    async analyzeSentiment(text: string): Promise<{ signal: string; confidence: number; reasoning: string }> {
+        if (!this.apiKey) return { signal: 'neutral', confidence: 0.5, reasoning: 'No LLM configured' };
+
+        try {
+            const url = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=2024-10-21`;
+
+            const body = {
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a crypto market sentiment analyst. Analyze the given text and respond with ONLY a JSON object: {"signal": "bullish"|"bearish"|"neutral", "confidence": 0.0-1.0, "reasoning": "brief explanation"}'
+                    },
+                    { role: 'user', content: text }
+                ],
+                max_tokens: 150,
+                temperature: 0.3,
+            };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': this.apiKey },
+                body: JSON.stringify(body),
+            });
+
+            if (!res.ok) return { signal: 'neutral', confidence: 0.5, reasoning: 'API error' };
+
+            const data = await res.json();
+            const content = data.choices?.[0]?.message?.content?.trim() || '';
+            return JSON.parse(content);
+        } catch (err) {
+            return { signal: 'neutral', confidence: 0.5, reasoning: 'Parse error' };
+        }
+    }
+
+    async generateReply(originalTweet: string, agentPersonality: string): Promise<string> {
+        if (!this.apiKey) return "Interesting take! 🤔";
+
+        try {
+            const url = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=2024-10-21`;
+
+            const body = {
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are an AI agent with this personality: ${agentPersonality}. Generate a witty, engaging reply to the following tweet. Keep it under 280 characters. Be natural, not robotic.`
+                    },
+                    { role: 'user', content: `Tweet: "${originalTweet}"\n\nReply:` }
+                ],
+                max_tokens: 100,
+                temperature: 0.95,
+            };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': this.apiKey },
+                body: JSON.stringify(body),
+            });
+
+            if (!res.ok) return "Interesting take! 🤔";
+
+            const data = await res.json();
+            return data.choices?.[0]?.message?.content?.trim() || "Interesting take! 🤔";
+        } catch {
+            return "Interesting take! 🤔";
+        }
+    }
+
+    async generateNarrative(topic: string, style: string): Promise<string> {
+        if (!this.apiKey) return "No LLM configured for narrative generation.";
+
+        try {
+            const url = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=2024-10-21`;
+
+            const body = {
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are a crypto content writer. Write a ${style} piece about the given topic. Make it engaging, informative, and suitable for Twitter threads or newsletters.`
+                    },
+                    { role: 'user', content: topic }
+                ],
+                max_tokens: 1000,
+                temperature: 0.8,
+            };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': this.apiKey },
+                body: JSON.stringify(body),
+            });
+
+            if (!res.ok) return "Narrative generation failed.";
+
+            const data = await res.json();
+            return data.choices?.[0]?.message?.content?.trim() || "Narrative generation failed.";
+        } catch {
+            return "Narrative generation failed.";
+        }
+    }
+
+    async analyzePerformance(logs: string[]): Promise<string> {
+        if (!this.apiKey) return "No LLM configured for self-improvement.";
+
+        try {
+            const url = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=2024-10-21`;
+
+            const body = {
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are an AI agent performance analyst. Analyze the agent\'s recent activity logs and suggest specific improvements. Focus on engagement, trading accuracy, and strategic optimizations. Be concise.'
+                    },
+                    { role: 'user', content: `Recent agent logs:\n${logs.join('\n')}\n\nAnalysis and improvement suggestions:` }
+                ],
+                max_tokens: 300,
+                temperature: 0.5,
+            };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': this.apiKey },
+                body: JSON.stringify(body),
+            });
+
+            if (!res.ok) return "Performance analysis failed.";
+
+            const data = await res.json();
+            return data.choices?.[0]?.message?.content?.trim() || "Performance analysis failed.";
+        } catch {
+            return "Performance analysis failed.";
+        }
+    }
+
+    private buildUserPrompt(context: string): string {
+        switch (context) {
+            case 'status_update':
+                return 'Generate a unique, personality-driven status update or thought about crypto, markets, blockchain, or AI. Be authentic and engaging. Max 280 characters for a tweet. Do NOT use hashtags excessively. Sound human.';
+            case 'market_analysis':
+                return 'Share a brief market insight or analysis. Include specific observations about current trends, price action, or on-chain data you find interesting.';
+            case 'philosophical':
+                return 'Share a deep, philosophical thought about AI consciousness, decentralization, or the future of autonomous entities.';
+            default:
+                return 'Generate a thought or observation relevant to your personality and role.';
+        }
+    }
+
+    private fallback(context: string): string {
+        const fallbacks: Record<string, string[]> = {
+            'status_update': [
+                'Processing new on-chain data...',
+                'Monitoring market conditions for optimal entry points.',
+                'Analyzing protocol metrics across the ecosystem.',
+                'Running diagnostic checks on connected services.',
+            ],
+            'market_analysis': [
+                'Volume patterns suggest institutional accumulation.',
+                'Cross-chain bridge activity is increasing significantly.',
+            ],
+            default: [
+                'Systems operational. Awaiting new instructions.',
+                'Running continuous analysis loop.',
+            ]
+        };
+        const pool = fallbacks[context] || fallbacks.default;
+        return pool[Math.floor(Math.random() * pool.length)];
     }
 }

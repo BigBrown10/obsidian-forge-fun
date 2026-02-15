@@ -17,6 +17,7 @@ module.exports = {
             args: "src/index.ts",
             cwd: "./backend",
             interpreter: "node",
+            env_file: ".env",
             env: {
                 PORT: 3001,
                 TEE_SIMULATION: "true",

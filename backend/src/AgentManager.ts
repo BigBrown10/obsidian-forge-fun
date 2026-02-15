@@ -5,9 +5,48 @@ import { TwitterService } from './services/TwitterService';
 import { BrowserService } from './services/BrowserService';
 import { IdentityService } from './services/IdentityService';
 import { ISkill } from './skills/ISkill';
+
+// Original Skills
 import { TwitterSkill } from './skills/TwitterSkill';
 import { TraderSkill } from './skills/TraderSkill';
 import { EmailSkill } from './skills/EmailSkill';
+import { AccountCreationSkill } from './skills/AccountCreationSkill';
+
+// Crypto & DeFi Skills
+import { SniperSkill } from './skills/SniperSkill';
+import { DexTraderSkill } from './skills/DexTraderSkill';
+import { WhaleWatcherSkill } from './skills/WhaleWatcherSkill';
+import { PortfolioSkill } from './skills/PortfolioSkill';
+import { SentimentSkill } from './skills/SentimentSkill';
+import { HoneypotDetectorSkill } from './skills/HoneypotDetectorSkill';
+import { GasOptimizerSkill } from './skills/GasOptimizerSkill';
+import { CopyTraderSkill } from './skills/CopyTraderSkill';
+
+// Social & Communication Skills
+import { TwitterEngagementSkill } from './skills/TwitterEngagementSkill';
+import { TwitterAnalyticsSkill } from './skills/TwitterAnalyticsSkill';
+import { TelegramSkill } from './skills/TelegramSkill';
+import { DiscordSkill } from './skills/DiscordSkill';
+import { MixpostSchedulerSkill } from './skills/MixpostSchedulerSkill';
+
+// Business & Productivity Skills
+import { AgentMailSkill } from './skills/AgentMailSkill';
+import { GitHubManagerSkill } from './skills/GitHubManagerSkill';
+import { KnowledgeBaseSkill } from './skills/KnowledgeBaseSkill';
+import { WorkflowBuilderSkill } from './skills/WorkflowBuilderSkill';
+
+// Utility Skills
+import { WebScraperSkill } from './skills/WebScraperSkill';
+import { ShellCommanderSkill } from './skills/ShellCommanderSkill';
+import { SchedulerSkill } from './skills/SchedulerSkill';
+import { FileManagerSkill } from './skills/FileManagerSkill';
+
+// Hidden Gem Skills
+import { SkillVetterSkill } from './skills/SkillVetterSkill';
+import { SelfImproverSkill } from './skills/SelfImproverSkill';
+import { NarrativeWriterSkill } from './skills/NarrativeWriterSkill';
+import { AlphaRadarSkill } from './skills/AlphaRadarSkill';
+import { SoftwareDevSkill } from './skills/SoftwareDevSkill';
 
 export class AgentManager {
     private attestationService: AttestationService;
@@ -32,12 +71,51 @@ export class AgentManager {
         this.twitterService.setBrowserService(this.browserService);
         this.twitterService.setIdentityService(this.identityService);
 
-        // Register Skills
+        // ═══════════════════════════════════════════════
+        //  REGISTER ALL 25 SKILLS
+        // ═══════════════════════════════════════════════
 
-        // Register Skills
-        this.registerSkill(new TwitterSkill(this.twitterService));
-        this.registerSkill(new TraderSkill());
-        this.registerSkill(new EmailSkill());
+        // Original Skills (IDs 1-4)
+        this.registerSkill(new TwitterSkill(this.twitterService));             // 1
+        this.registerSkill(new TraderSkill());                                  // 2
+        this.registerSkill(new AccountCreationSkill(this.identityService, this.browserService)); // 3
+        this.registerSkill(new EmailSkill());                                   // 4
+
+        // Crypto & DeFi Skills (IDs 5-12)
+        this.registerSkill(new SniperSkill());                                  // 5
+        this.registerSkill(new DexTraderSkill());                               // 6
+        this.registerSkill(new WhaleWatcherSkill());                            // 7
+        this.registerSkill(new PortfolioSkill());                               // 8
+        this.registerSkill(new SentimentSkill(this.llmService));                // 9
+        this.registerSkill(new HoneypotDetectorSkill());                        // 10
+        this.registerSkill(new GasOptimizerSkill());                            // 11
+        this.registerSkill(new CopyTraderSkill());                              // 12
+
+        // Social & Communication Skills (IDs 13-19)
+        this.registerSkill(new TwitterEngagementSkill(this.llmService, this.twitterService)); // 13
+        this.registerSkill(new TwitterAnalyticsSkill());                        // 14
+        this.registerSkill(new TelegramSkill());                                // 15
+        this.registerSkill(new DiscordSkill());                                 // 16
+        this.registerSkill(new WebScraperSkill());                              // 17
+        this.registerSkill(new SchedulerSkill());                               // 18
+        this.registerSkill(new MixpostSchedulerSkill());                        // 19
+
+        // Business & Productivity Skills (IDs 20-25)
+        this.registerSkill(new AgentMailSkill());                               // 20
+        this.registerSkill(new GitHubManagerSkill());                           // 21
+        this.registerSkill(new KnowledgeBaseSkill());                           // 22
+        this.registerSkill(new WorkflowBuilderSkill());                         // 23
+        this.registerSkill(new ShellCommanderSkill());                          // 24
+        this.registerSkill(new FileManagerSkill());                             // 25
+
+        // Hidden Gem Skills (IDs 26-29)
+        this.registerSkill(new SkillVetterSkill());                             // 26
+        this.registerSkill(new SelfImproverSkill(this.llmService));             // 27
+        this.registerSkill(new NarrativeWriterSkill(this.llmService));          // 28
+        this.registerSkill(new AlphaRadarSkill(this.llmService));               // 29
+        this.registerSkill(new SoftwareDevSkill(this.llmService));               // 30
+
+        console.log(`[SKILLS] ═══ ${this.skillRegistry.size} total skills registered ═══`);
     }
 
     private registerSkill(skill: ISkill) {
@@ -46,32 +124,35 @@ export class AgentManager {
     }
 
     // Called when a new agent is detected on-chain
-    public registerAgent(agent: any) {
+    registerAgent(agent: any) {
         if (this.activeAgents.has(agent.id)) return;
-
-        this.addLog(agent.id, "INFO", `Agent registered: ${agent.name} (${agent.ticker})`);
         this.activeAgents.set(agent.id, agent);
         this.startAgentLoop(agent);
+        console.log(`🤖 Agent Registered: ${agent.name} (${agent.ticker})`);
     }
 
-    public async spawnAgent(agentId: string, manifest: any) {
-        console.log(`[SPAWN] Spawning agent ${agentId}...`);
-        this.registerAgent({
+    spawnAgent(agentId: string, manifest: any) {
+        const agent = {
             id: agentId,
-            ...manifest
-        });
-        return { status: "spawned", agentId };
+            ...manifest,
+        };
+        this.activeAgents.set(agentId, agent);
+        this.startAgentLoop(agent);
+        return agent;
     }
 
     private startAgentLoop(agent: any) {
-        // Random start delay to stagger agents
-        const delay = Math.random() * 10000;
+        if (this.loops.has(agent.id)) return;
 
-        setTimeout(() => {
-            this.addLog(agent.id, "LOOP", "Starting autonomous loop...");
-            const interval = setInterval(() => this.agentTick(agent), 30000); // Wake up every 30s
-            this.loops.set(agent.id, interval);
-        }, delay);
+        // Stagger agent ticks to avoid bursting all at once
+        const interval = 45000 + Math.floor(Math.random() * 30000); // 45-75 seconds
+
+        const loop = setInterval(async () => {
+            await this.agentTick(agent);
+        }, interval);
+
+        this.loops.set(agent.id, loop);
+        console.log(`🔄 Agent Loop started for ${agent.ticker} (interval: ${Math.round(interval / 1000)}s)`);
     }
 
     private async agentTick(agent: any) {
@@ -79,9 +160,8 @@ export class AgentManager {
 
         try {
             // Decide action based on skills & randomness
-            // 70% chance to think/tweet, 30% to use a specialized skill if equipped
-
-            const useSkill = Math.random() < 0.3 && agent.skills && agent.skills.length > 0;
+            // 40% chance to use a skill, 60% to think/tweet
+            const useSkill = Math.random() < 0.4 && agent.skills && agent.skills.length > 0;
 
             if (useSkill) {
                 // Pick a random equipped skill
@@ -91,7 +171,7 @@ export class AgentManager {
                 if (skill) {
                     this.addLog(agent.id, "EXEC", `Executing skill: ${skill.name}...`);
 
-                    // Simple input for now
+                    // Generate contextual input using LLM
                     const input = {
                         thought: await this.llmService.generateThought(agent.runtimePrompt || "Be yourself.", "status_update"),
                         image: null
@@ -106,13 +186,21 @@ export class AgentManager {
                 }
             }
 
-            // Normal Thinking Loop
+            // Normal Thinking Loop — Now powered by real Azure OpenAI
             let prompt = "You are an AI agent.";
             if (agent.metadata) {
                 try {
                     const meta = JSON.parse(agent.metadata);
                     if (meta.prompt) prompt = meta.prompt;
                 } catch (e) { /* ignore json parse error */ }
+            }
+
+            // Use metadataURI for additional context
+            if (agent.metadataURI) {
+                try {
+                    const meta = JSON.parse(agent.metadataURI);
+                    if (meta.description) prompt += `\n\nAgent Description: ${meta.description}`;
+                } catch (e) { /* not JSON, that's fine */ }
             }
 
             const thought = await this.llmService.generateThought(prompt, "status_update");
@@ -137,72 +225,92 @@ export class AgentManager {
 
     // --- Logging Helper ---
     private addLog(agentId: string, type: string, msg: string) {
-        const entry = { type, msg, timestamp: Date.now() };
-        const agentLogs = this.logs.get(agentId) || [];
-        agentLogs.unshift(entry);
-        if (agentLogs.length > 50) agentLogs.pop();
-        this.logs.set(agentId, agentLogs);
+        if (!this.logs.has(agentId)) {
+            this.logs.set(agentId, []);
+        }
+        const agentLogs = this.logs.get(agentId)!;
+        agentLogs.push({ type, msg, timestamp: Date.now() });
 
-        // Also echo to stdout for debugging
-        const ticker = this.activeAgents.get(agentId)?.ticker || agentId;
+        // Keep max 200 entries per agent
+        if (agentLogs.length > 200) {
+            this.logs.set(agentId, agentLogs.slice(-200));
+        }
+
+        const agent = this.activeAgents.get(agentId);
+        const ticker = agent?.ticker || agentId;
         console.log(`[${type}] ${ticker}: ${msg}`);
     }
 
-    public getLogs(agentId: string) {
+    getLogs(agentId: string) {
         return this.logs.get(agentId) || [];
     }
 
-    async processAgentAction(agentId: string, actionPayload: string) {
-        console.log("Processing action for agent " + agentId + "...");
-
-        // 1. Generate TEE Quote (Consent-to-Spend)
-        const quote = await this.attestationService.generateQuote(actionPayload);
-        console.log("🔒 Generated TEE Quote:", quote);
-
-        // 2. Verify Quote (simulating on-chain verification)
-        const isValid = await this.attestationService.verifyQuote(quote, actionPayload);
-        if (!isValid) {
-            console.error("❌ TEE Quote Verification Failed! Action blocked.");
-            return;
+    processAgentAction(agentId: string, actionPayload: string) {
+        const agent = this.activeAgents.get(agentId);
+        if (!agent) {
+            return { error: "Agent not found" };
         }
 
-        console.log("✅ TEE Attestation Verified. Executing action...");
-        // ... execute action (e.g. sign transaction) ...
+        this.addLog(agentId, "ACTION", `Received external action: ${actionPayload}`);
+
+        if (actionPayload === 'tweet') {
+            this.agentTick(agent);
+            return { status: "Forced agent tick." };
+        }
+
+        if (actionPayload === 'trade') {
+            this.addLog(agentId, "TRADE", "Manual trade triggered.");
+            return { status: "Trade initiated." };
+        }
+
+        return { status: "Action queued." };
     }
 
-    public async hibernateAgent(agentId: string) {
-        console.log(`[HIBERNATE] Stopping agent ${agentId}...`);
+    hibernateAgent(agentId: string) {
         const loop = this.loops.get(agentId);
         if (loop) {
             clearInterval(loop);
             this.loops.delete(agentId);
-            this.activeAgents.delete(agentId);
-            return { status: "hibernating", agentId };
+            this.addLog(agentId, "HIBERNATE", "Agent loop stopped.");
+            console.log(`😴 Agent ${agentId} hibernated.`);
+            return { status: "hibernated" };
         }
-        return { status: "not_found", agentId };
+        return { error: "No active loop found." };
     }
 
-    public async checkConsent(pollId: string) {
-        // Mock TEE Consent Check
-        console.log(`[TEE] Checking consent for poll ${pollId}...`);
-        return true; // Always pass for MVP
+    checkConsent(pollId: string) {
+        // Future: Check X-Poll result via TEE
+        return { approved: Math.random() > 0.3, pollId };
     }
-
 
     // --- Runtime Updates (Training & Skills) ---
-    public updateRuntimePrompt(agentId: string, prompt: string) {
+    updateRuntimePrompt(agentId: string, prompt: string) {
         const agent = this.activeAgents.get(agentId);
         if (agent) {
             agent.runtimePrompt = prompt;
-            console.log(`[TRAIN] Updated system prompt for ${agent.ticker}`);
+            this.addLog(agentId, "TRAIN", `System prompt updated: "${prompt.slice(0, 50)}..."`);
+            return { status: "Prompt updated." };
         }
+        return { error: "Agent not found." };
     }
 
-    public updateEquippedSkills(agentId: string, skills: number[]) {
+    updateEquippedSkills(agentId: string, skills: number[]) {
         const agent = this.activeAgents.get(agentId);
         if (agent) {
             agent.skills = skills;
-            console.log(`[SKILLS] Updated skills for ${agent.ticker}:`, skills);
+            const skillNames = skills.map(id => this.skillRegistry.get(id)?.name || `Unknown(${id})`).join(', ');
+            this.addLog(agentId, "SKILLS", `Equipped: [${skillNames}]`);
+            return { status: "Skills updated.", equipped: skillNames };
         }
+        return { error: "Agent not found." };
+    }
+
+    // --- Skill Registry Info ---
+    getAvailableSkills() {
+        const skills: any[] = [];
+        this.skillRegistry.forEach((skill, id) => {
+            skills.push({ id, name: skill.name, description: skill.description });
+        });
+        return skills;
     }
 }

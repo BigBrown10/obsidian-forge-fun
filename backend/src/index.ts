@@ -161,6 +161,9 @@ const app = new Elysia({ adapter: node() })
         agentManager.updateEquippedSkills(id, body.skills);
         return { success: true };
     })
+    .get('/api/skills', async () => {
+        return agentManager.getAvailableSkills();
+    })
     .listen(process.env.PORT || 3001)
 
 fetchAgents().then(agents => {

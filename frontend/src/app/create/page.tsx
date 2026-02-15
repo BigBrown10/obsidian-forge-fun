@@ -4,9 +4,77 @@ import { useState, useRef, useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain, useReadContract } from 'wagmi'
 import { parseEther } from 'viem'
 import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI } from '../../lib/contracts'
-import { Loader2, Sparkles, Upload, FileImage, Hammer, Zap, ArrowRight, CheckCircle2, RefreshCw, Rocket, Egg } from 'lucide-react'
+import { Loader2, Sparkles, Upload, FileImage, Hammer, Zap, ArrowRight, CheckCircle2, RefreshCw, Rocket, Egg, ChevronDown, Bot, Crosshair, TrendingUp, MessageSquare, Brain, Wrench, Code2, Crown } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { MOCK_PERSONAS } from '../../data/mock'
+
+// Agent Type Presets — each maps to specific skill IDs
+const AGENT_PRESETS = [
+    {
+        id: 'trading_bot',
+        name: 'Trading Bot',
+        icon: '📊',
+        description: 'Snipes new tokens, trades on DEX, monitors gas, detects honeypots.',
+        skills: [2, 5, 6, 10, 11, 8], // Trader, Sniper, DexTrader, HoneypotDetector, GasOptimizer, Portfolio
+        color: 'emerald'
+    },
+    {
+        id: 'alpha_hunter',
+        name: 'Alpha Hunter',
+        icon: '🎯',
+        description: 'Scans CT for alpha, tracks whale wallets, analyzes sentiment, copy trades.',
+        skills: [9, 7, 12, 17, 29], // Sentiment, WhaleWatcher, CopyTrader, WebScraper, AlphaRadar
+        color: 'amber'
+    },
+    {
+        id: 'social_agent',
+        name: 'Social Agent',
+        icon: '📱',
+        description: 'Posts to Twitter, engages viral threads, manages Telegram & Discord.',
+        skills: [1, 13, 14, 15, 16, 19], // Twitter, TwitterEngagement, TwitterAnalytics, Telegram, Discord, Mixpost
+        color: 'blue'
+    },
+    {
+        id: 'content_creator',
+        name: 'Content Creator',
+        icon: '✍️',
+        description: 'Writes threads, newsletters, reports. LLM-powered narrative engine.',
+        skills: [1, 28, 18, 19, 17], // Twitter, NarrativeWriter, Scheduler, Mixpost, WebScraper
+        color: 'purple'
+    },
+    {
+        id: 'defi_degen',
+        name: 'DeFi Degen',
+        icon: '🔥',
+        description: 'Full trading suite: snipe, swap, copy trade, whale watch, portfolio track.',
+        skills: [2, 5, 6, 7, 8, 10, 11, 12], // All crypto skills
+        color: 'red'
+    },
+    {
+        id: 'software_dev',
+        name: 'Software Dev',
+        icon: '💻',
+        description: 'Writes code, reviews PRs, manages GitHub repos, debugs issues.',
+        skills: [30, 21, 24, 25, 22], // SoftwareDev, GitHub, Shell, File, KB
+        color: 'cyan'
+    },
+    {
+        id: 'autonomous_ops',
+        name: 'Autonomous Ops',
+        icon: '⚙️',
+        description: 'Self-improving agent with email, scheduling, file management, and workflows.',
+        skills: [27, 20, 18, 23, 24, 25], // SelfImprover, AgentMail, Scheduler, Workflow, Shell, File
+        color: 'orange'
+    },
+    {
+        id: 'full_arsenal',
+        name: 'Full Arsenal',
+        icon: '👑',
+        description: 'Every skill enabled. Maximum autonomy. The ultimate agent.',
+        skills: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        color: 'accent'
+    },
+] as const;
 
 export default function CreateAgent() {
     const router = useRouter()
@@ -17,6 +85,8 @@ export default function CreateAgent() {
     const [target, setTarget] = useState('10')
     const [initialBuy, setInitialBuy] = useState('0')
     const [vaultPercent, setVaultPercent] = useState(50)
+    const [agentType, setAgentType] = useState<string>('full_arsenal')
+    const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false)
 
     // Step Control
     const [launchMode, setLaunchMode] = useState<'instant' | 'incubator' | null>(null)
@@ -105,7 +175,9 @@ export default function CreateAgent() {
                         description,
                         image: image ? image.name : 'default.png',
                         vaultPercent,
-                        opsPercent: 100 - vaultPercent
+                        opsPercent: 100 - vaultPercent,
+                        agentType,
+                        skills: AGENT_PRESETS.find(p => p.id === agentType)?.skills || [],
                     }),
                     parseEther(target),
                 ],
@@ -275,6 +347,79 @@ export default function CreateAgent() {
                                     placeholder="Manifesto / Description..."
                                     className="w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white focus:border-accent outline-none transition-colors h-32 resize-none"
                                 />
+
+                                {/* Agent Type Selector */}
+                                <div className="relative">
+                                    <label className="text-xs font-bold text-text-dim uppercase tracking-widest mb-2 block">Agent Type</label>
+                                    <button
+                                        onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+                                        className="w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white text-left flex items-center justify-between hover:border-accent/50 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl">{AGENT_PRESETS.find(p => p.id === agentType)?.icon}</span>
+                                            <div>
+                                                <div className="font-bold">{AGENT_PRESETS.find(p => p.id === agentType)?.name}</div>
+                                                <div className="text-xs text-text-dim">{AGENT_PRESETS.find(p => p.id === agentType)?.skills.length} skills equipped</div>
+                                            </div>
+                                        </div>
+                                        <ChevronDown className={`w-5 h-5 text-text-dim transition-transform ${isTypeDropdownOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {isTypeDropdownOpen && (
+                                        <div className="absolute z-50 w-full mt-2 bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden shadow-xl shadow-black/50 max-h-[360px] overflow-y-auto">
+                                            {AGENT_PRESETS.map(preset => (
+                                                <button
+                                                    key={preset.id}
+                                                    onClick={() => { setAgentType(preset.id); setIsTypeDropdownOpen(false); }}
+                                                    className={`w-full px-5 py-4 text-left flex items-center gap-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 ${agentType === preset.id ? 'bg-accent/10 border-l-2 border-l-accent' : ''
+                                                        }`}
+                                                >
+                                                    <span className="text-2xl shrink-0">{preset.icon}</span>
+                                                    <div className="min-w-0">
+                                                        <div className="font-bold text-white text-sm">{preset.name}</div>
+                                                        <div className="text-xs text-text-dim truncate">{preset.description}</div>
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim">
+                                                                {preset.skills.length} skills
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Selected Skills Preview */}
+                                {agentType && (
+                                    <div className="p-3 bg-white/[0.03] rounded-xl border border-white/5">
+                                        <div className="text-[10px] text-text-dim uppercase tracking-widest mb-2">Equipped Skills</div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {(AGENT_PRESETS.find(p => p.id === agentType)?.skills || []).slice(0, 12).map(skillId => {
+                                                const skillNames: Record<number, string> = {
+                                                    1: 'Twitter', 2: 'Trader', 3: 'Account Gen', 4: 'Email',
+                                                    5: 'Sniper', 6: 'DEX Trader', 7: 'Whale Watch', 8: 'Portfolio',
+                                                    9: 'Sentiment', 10: 'Honeypot', 11: 'Gas Opt.', 12: 'Copy Trade',
+                                                    13: 'Engage', 14: 'Analytics', 15: 'Telegram', 16: 'Discord',
+                                                    17: 'Web Scraper', 18: 'Scheduler', 19: 'Mixpost', 20: 'Email',
+                                                    21: 'GitHub', 22: 'Knowledge', 23: 'Workflows', 24: 'Shell',
+                                                    25: 'Files', 26: 'Skill Vet', 27: 'Self-Improve', 28: 'Narrative',
+                                                    29: 'Alpha Radar', 30: 'Software Dev'
+                                                };
+                                                return (
+                                                    <span key={skillId} className="text-[10px] px-2 py-1 rounded-lg bg-accent/10 text-accent border border-accent/20">
+                                                        {skillNames[skillId] || `Skill #${skillId}`}
+                                                    </span>
+                                                );
+                                            })}
+                                            {(AGENT_PRESETS.find(p => p.id === agentType)?.skills.length || 0) > 12 && (
+                                                <span className="text-[10px] px-2 py-1 rounded-lg bg-white/5 text-text-dim">
+                                                    +{(AGENT_PRESETS.find(p => p.id === agentType)?.skills.length || 0) - 12} more
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Allocation Strategy */}
                                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
