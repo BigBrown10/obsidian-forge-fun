@@ -31,7 +31,7 @@ export class LLMService {
                         content: this.buildUserPrompt(context)
                     }
                 ],
-                max_tokens: 280, // Tweet-length thoughts
+                max_completion_tokens: 280, // Tweet-length thoughts
                 temperature: 0.9,
                 presence_penalty: 0.6,
                 frequency_penalty: 0.5,
@@ -81,7 +81,7 @@ export class LLMService {
                     },
                     { role: 'user', content: text }
                 ],
-                max_tokens: 150,
+                max_completion_tokens: 150,
                 temperature: 0.3,
             };
 
@@ -115,7 +115,7 @@ export class LLMService {
                     },
                     { role: 'user', content: `Tweet: "${originalTweet}"\n\nReply:` }
                 ],
-                max_tokens: 100,
+                max_completion_tokens: 100,
                 temperature: 0.95,
             };
 
@@ -148,7 +148,7 @@ export class LLMService {
                     },
                     { role: 'user', content: topic }
                 ],
-                max_tokens: 1000,
+                max_completion_tokens: 1000,
                 temperature: 0.8,
             };
 
@@ -181,7 +181,7 @@ export class LLMService {
                     },
                     { role: 'user', content: `Recent agent logs:\n${logs.join('\n')}\n\nAnalysis and improvement suggestions:` }
                 ],
-                max_tokens: 300,
+                max_completion_tokens: 300,
                 temperature: 0.5,
             };
 

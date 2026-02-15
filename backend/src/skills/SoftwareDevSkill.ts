@@ -33,7 +33,7 @@ export class SoftwareDevSkill implements ISkill {
                             { role: 'system', content: `You are an expert ${language} developer. Write clean, production-ready code. Include comments. Be concise.` },
                             { role: 'user', content: task }
                         ],
-                        max_tokens: 500,
+                        max_completion_tokens: 500,
                         temperature: 0.3,
                     }),
                 });
@@ -65,7 +65,7 @@ export class SoftwareDevSkill implements ISkill {
                             { role: 'system', content: `You are a senior code reviewer. Review the following code for bugs, security issues, performance, and best practices. Be concise and actionable.` },
                             { role: 'user', content: `Review this ${language} code:\n\n${code}` }
                         ],
-                        max_tokens: 300,
+                        max_completion_tokens: 300,
                         temperature: 0.3,
                     }),
                 });
