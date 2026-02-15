@@ -25,11 +25,9 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
 
     useEffect(() => { params.then(setResolvedParams) }, [params])
 
-    // Derived State
-    const isCreator = agent && address ? agent.creator.toLowerCase() === address.toLowerCase() : false
-
     useEffect(() => {
         if (resolvedParams) {
+
             let retries = 0
             const maxRetries = 15
             const fetchAgent = () => {
