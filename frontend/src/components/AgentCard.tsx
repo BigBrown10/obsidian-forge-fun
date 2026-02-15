@@ -2,78 +2,92 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Activity, Users, Zap, TrendingUp } from 'lucide-react'
+import { Activity, Users, Zap, TrendingUp, Clock } from 'lucide-react'
 import { type Agent } from '../lib/api'
 import { formatCompactNumber, formatCurrency } from '../lib/formatting'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { useRouter } from 'next/navigation'
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
 export default function AgentCard({ agent, onClick, minimalist = false }: { agent: Agent, onClick?: () => void, minimalist?: boolean }) {
+    const router = useRouter()
     const isLaunched = agent.launched
     const metadata = agent.metadataURI ? JSON.parse(agent.metadataURI) : {}
     const image = metadata.image || `https://api.dicebear.com/9.x/shapes/svg?seed=${agent.ticker}`
 
-    // Simulate live data for Trenches feel
-    // If incubating, these are 0 or N/A effectively, but this component is for Trenches (Live) mostly
-    const marketCap = isLaunched ? 420000 + (Number(agent.id) * 1500) : 0
-    const volume = isLaunched ? 1200000 : 0
-    const price = isLaunched ? 0.00042 : 0
-    const change24h = isLaunched ? 12.5 : 0
-    const holders = isLaunched ? 420 + Number(agent.id) * 10 : 0
+    // Metrics (Simulated or Real)
+    // If not launched, we use bonding progress. If launched, we use simulated market data.
+    const progress = Math.min(agent.bondingProgress, 100)
+    const marketCap = isLaunched ? 420000 + (Number(agent.id) * 1500) : (Number(agent.totalRaised) / 10 ** 18) * 600 // Approx BNB price
+    const percentage = isLaunched ? 12.5 : progress
+    const isPositive = true // For now assumed positive
+
+    const timeAgo = (date: string) => {
+        const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+        if (seconds < 60) return `${seconds}s ago`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        return `${Math.floor(hours / 24)}d ago`;
+    }
 
     return (
         <motion.div
-            whileHover={{ y: -1, backgroundColor: 'rgba(255,255,255,0.03)' }}
-            onClick={onClick}
-            className="group cursor-pointer relative bg-surface border-b border-white/5 transition-colors p-4 flex items-center justify-between"
+            whileHover={{ backgroundColor: 'rgba(255,255,255,0.02)' }}
+            onClick={onClick || (() => router.push(`/agent/${agent.ticker}`))}
+            className="group cursor-pointer bg-[#0A0A0A] hover:bg-[#111] border-b border-white/5 p-4 flex gap-4 items-start transition-colors"
         >
-            {/* Left: Identity */}
-            <div className="flex items-center gap-4 w-[35%] shrink-0">
-                <div className="w-10 h-10 rounded-xl bg-white/5 overflow-hidden border border-white/10 shrink-0 relative">
-                    <img src={image} alt={agent.ticker} className="w-full h-full object-cover" />
-                    {isLaunched && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-[#111]" />}
-                </div>
-                <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-white text-sm truncate">{agent.name}</h3>
-                        <span className="text-[10px] font-mono text-text-dim bg-white/5 px-1.5 rounded">${agent.ticker}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-text-dim mt-0.5">
-                        <span className="flex items-center gap-1 text-accent font-medium"><Zap className="w-3 h-3" /> Live</span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {formatCompactNumber(holders)}</span>
-                    </div>
-                </div>
+            {/* Image (Square, Clean) */}
+            <div className="w-16 h-16 bg-white/5 rounded-lg overflow-hidden shrink-0 relative">
+                <img src={image} alt={agent.ticker} className="w-full h-full object-cover" />
             </div>
 
-            {/* Right: Stats Grid */}
-            <div className="flex items-center justify-end gap-6 sm:gap-12 w-full">
+            {/* Content */}
+            <div className="flex-1 min-w-0 flex flex-col justify-between h-16">
 
-                <div className="text-right w-20 shrink-0">
-                    <div className="text-[10px] text-text-dim uppercase tracking-wider mb-0.5">Price</div>
-                    <div className="font-mono text-sm text-white font-medium">${price.toFixed(5)}</div>
-                </div>
-
-                <div className="text-right w-20 shrink-0 hidden sm:block">
-                    <div className="text-[10px] text-text-dim uppercase tracking-wider mb-0.5">Mkt Cap</div>
-                    <div className="font-mono text-sm text-text-secondary">{formatCompactNumber(marketCap)}</div>
-                </div>
-
-                <div className="text-right w-20 shrink-0 hidden md:block">
-                    <div className="text-[10px] text-text-dim uppercase tracking-wider mb-0.5">Vol (24h)</div>
-                    <div className="font-mono text-sm text-text-secondary">{formatCompactNumber(volume)}</div>
-                </div>
-
-                <div className="text-right w-16 shrink-0">
-                    <div className="text-[10px] text-text-dim uppercase tracking-wider mb-0.5">24h %</div>
-                    <div className={`font-mono text-sm font-bold ${change24h >= 0 ? "text-success" : "text-danger"}`}>
-                        {change24h > 0 ? '+' : ''}{change24h}%
+                {/* Row 1: Name & Ticker */}
+                <div className="flex justify-between items-start">
+                    <div className="flex items-baseline gap-2 min-w-0">
+                        <h3 className="font-bold text-white text-sm truncate">{agent.name}</h3>
+                        <span className="text-xs text-text-dim truncate">${agent.ticker}</span>
+                    </div>
+                    <div className="text-[10px] text-text-dim font-mono shrink-0">
+                        {timeAgo(agent.createdAt || new Date().toISOString())}
                     </div>
                 </div>
+
+                {/* Row 2: Creator & Cap */}
+                <div className="flex justify-between items-center text-xs">
+                    <div className="flex items-center gap-1.5 text-text-dim">
+                        <div className="w-4 h-4 rounded-full bg-white/10 overflow-hidden">
+                            <img src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${agent.creator}`} className="w-full h-full" />
+                        </div>
+                        <span className="truncate max-w-[100px]">{agent.creator.slice(0, 6)}...</span>
+                    </div>
+                    <div className="font-mono text-white">
+                        <span className="text-text-dim mr-1">MC</span>
+                        ${formatCompactNumber(marketCap)}
+                    </div>
+                </div>
+
+                {/* Row 3: Progress Bar */}
+                <div className="flex items-center gap-3 mt-1">
+                    <div className="flex-1 h-1.5 bg-[#222] rounded-full overflow-hidden">
+                        <div
+                            className={`h-full rounded-full ${isLaunched ? 'bg-success' : 'bg-accent'}`}
+                            style={{ width: `${Math.max(percentage, 5)}%` }}
+                        />
+                    </div>
+                    <div className={`text-[10px] font-mono font-bold ${isPositive ? 'text-success' : 'text-danger'} w-12 text-right`}>
+                        {isLaunched ? `↑ ${percentage}%` : `${percentage.toFixed(0)}%`}
+                    </div>
+                </div>
+
             </div>
         </motion.div>
     )

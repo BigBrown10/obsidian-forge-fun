@@ -13,10 +13,11 @@ export default function Launchpad() {
     useEffect(() => {
         getAgents().then(data => {
             // Launchpad shows UNLAUNCHED agents (Bonding in progress)
-            setAgents(data.filter(a => !a.launched))
+            // Strict filter: Not launched AND progress < 100
+            setAgents(data.filter(a => !a.launched && a.bondingProgress < 100))
         })
         const interval = setInterval(() => {
-            getAgents().then(data => setAgents(data.filter(a => !a.launched)))
+            getAgents().then(data => setAgents(data.filter(a => !a.launched && a.bondingProgress < 100)))
         }, 5000)
         return () => clearInterval(interval)
     }, [])

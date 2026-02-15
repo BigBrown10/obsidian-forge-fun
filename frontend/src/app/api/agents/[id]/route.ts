@@ -3,6 +3,8 @@ import { createPublicClient, http, parseAbiItem } from 'viem'
 import { bscTestnet } from 'viem/chains'
 import { LAUNCHPAD_ADDRESS } from '@/lib/contracts'
 
+export const dynamic = 'force-dynamic'
+
 const RPC_URL = 'https://data-seed-prebsc-1-s1.binance.org:8545'
 
 const publicClient = createPublicClient({

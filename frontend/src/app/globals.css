@@ -7,15 +7,16 @@
 :root {
   --bg-base: #000000;
   --bg-surface: #0A0A0A;
-  --bg-card: #0A0A0A;
+  --bg-card: #111111;
   --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(124, 58, 237, 0.3);
+  --border-hover: rgba(255, 127, 80, 0.3);
   --text-primary: #FFFFFF;
   --text-secondary: #94A3B8;
   --text-dim: #52525b;
-  --accent: #7C3AED;
-  --accent-dim: #6D28D9;
-  --accent-bg: rgba(124, 58, 237, 0.1);
+  --accent: #FF7F50;
+  /* Coral */
+  --accent-dim: #E06940;
+  --accent-bg: rgba(255, 127, 80, 0.1);
   --danger: #EF4444;
   --success: #10B981;
 }
@@ -74,50 +75,13 @@ body {
   }
 }
 
-@keyframes pulse-glow {
-
-  0%,
-  100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
-}
-
-@keyframes scanline {
-  0% {
-    transform: translateY(-100%);
-  }
-
-  100% {
-    transform: translateY(100%);
-  }
-}
-
 .animate-fade-in {
   animation: fadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 3s ease-in-out infinite;
-}
-
-.scanline-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, transparent, rgba(124, 58, 237, 0.03), transparent);
-  animation: scanline 4s linear infinite;
-  pointer-events: none;
-}
-
-/* ── Spark Meter ───────────────────────────────────── */
+/* ── Spark Meter (Updated for Coral) ──────────────── */
 .spark-meter {
   height: 4px;
-  /* Thin, elegant */
   background: var(--border-subtle);
   border-radius: 9999px;
   overflow: hidden;
@@ -126,20 +90,6 @@ body {
 .spark-fill {
   height: 100%;
   background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
   border-radius: 9999px;
   transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-/* ── Vibe Pulsar ───────────────────────────────────── */
-.vibe-pulsar {
-  position: fixed;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.03) 0%, transparent 50%);
-  animation: pulse-glow 10s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 0;
 }

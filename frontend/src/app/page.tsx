@@ -50,15 +50,17 @@ export default function Dashboard() {
       <GraduationRow agents={agents} onSelect={handleSelectAgent} />
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {agents.length > 0 ? (
-          agents.map(agent => (
-            <AgentCard key={agent.id} agent={agent} onClick={() => handleSelectAgent(agent)} />
-          ))
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {agents.filter(a => a.launched || a.bondingProgress >= 100).length > 0 ? (
+          agents
+            .filter(a => a.launched || a.bondingProgress >= 100)
+            .map(agent => (
+              <AgentCard key={agent.id} agent={agent} onClick={() => handleSelectAgent(agent)} />
+            ))
         ) : (
           <div className="col-span-full py-32 text-center">
-            <div className="text-text-dim font-mono mb-2">NO_SIGNALS_DETECTED</div>
-            <div className="text-xs text-text-dim/50">The network is quiet. Too quiet.</div>
+            <div className="text-text-dim font-mono mb-2">NO_LIVE_SIGNALS</div>
+            <div className="text-xs text-text-dim/50">The trenches are empty. Go launch something.</div>
           </div>
         )}
       </div>
