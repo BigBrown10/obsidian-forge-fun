@@ -58,6 +58,9 @@ const fetchAgents = async () => {
                 // Fetch Skills (Default to [1] for now)
                 let skills: number[] = [1]
 
+                // Fetch Identity
+                const identity = agentManager.getAgentIdentity(id.toString());
+
                 agents.push({
                     id: id.toString(),
                     name,
@@ -70,7 +73,8 @@ const fetchAgents = async () => {
                     launched,
                     tokenAddress,
                     createdAt: new Date(Number(createdAt) * 1000).toISOString(),
-                    skills
+                    skills,
+                    identity
                 })
             } catch (err) {
                 console.error(`Error loading agent ${i}`, err)
