@@ -22,7 +22,7 @@ export default function AgentCard({ agent, onClick, minimalist = false }: { agen
     // Metrics (Simulated or Real)
     // If not launched, we use bonding progress. If launched, we use simulated market data.
     const progress = Math.min(agent.bondingProgress, 100)
-    const marketCap = isLaunched ? 420000 + (Number(agent.id) * 1500) : (Number(agent.totalRaised) / 10 ** 18) * 600 // Approx BNB price
+    const marketCap = isLaunched ? 420000 + (Number(agent.id) * 1500) : (Number(agent.pledgedAmount) / 10 ** 18) * 600 // Approx BNB price
     const percentage = isLaunched ? 12.5 : progress
     const isPositive = true // For now assumed positive
 
