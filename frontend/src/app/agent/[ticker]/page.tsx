@@ -2,40 +2,36 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi'
 import { parseEther } from 'viem'
 import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI } from '../../../lib/contracts'
 import { getAgentByTicker, type Agent } from '../../../lib/api'
 import { formatMarketCap } from '../../../data/mock'
 import ManageAgent from './manage'
-import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap } from 'lucide-react'
+import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap, Users, Rocket, Lock, Shield, BarChart3, MessageSquare } from 'lucide-react'
+import { formatCompactNumber } from '../../../lib/formatting'
 
 export default function AgentDetail({ params }: { params: Promise<{ ticker: string }> }) {
     const [resolvedParams, setResolvedParams] = useState<{ ticker: string } | null>(null)
     const [agent, setAgent] = useState<Agent | null>(null)
     const [loading, setLoading] = useState(true)
-    const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy')
-    const [amount, setAmount] = useState('')
-    const [activeTab, setActiveTab] = useState<'chart' | 'manage'>('chart')
     const [logs, setLogs] = useState<any[]>([])
 
+    // Wagmi
     const { isConnected, address } = useAccount()
     const chainId = useChainId()
     const { switchChain } = useSwitchChain()
 
-    const { data: hash, writeContract, isPending, error: writeError } = useWriteContract()
-    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+    useEffect(() => { params.then(setResolvedParams) }, [params])
 
-    useEffect(() => {
-        params.then(setResolvedParams)
-    }, [params])
+    // Derived State
+    const isCreator = agent && address ? agent.creator.toLowerCase() === address.toLowerCase() : false
 
     useEffect(() => {
         if (resolvedParams) {
             let retries = 0
-            const maxRetries = 15 // 30 seconds total wait
-
+            const maxRetries = 15
             const fetchAgent = () => {
                 getAgentByTicker(resolvedParams.ticker)
                     .then(data => {
@@ -46,44 +42,17 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
                             retries++
                             setTimeout(fetchAgent, 2000)
                         } else {
-                            setLoading(false) // Trigger Signal Lost
+                            setLoading(false)
                         }
                     })
                     .catch(() => {
-                        if (retries < maxRetries) {
-                            retries++
-                            setTimeout(fetchAgent, 2000)
-                        } else {
-                            setLoading(false)
-                        }
+                        if (retries < maxRetries) { retries++; setTimeout(fetchAgent, 2000) }
+                        else setLoading(false)
                     })
             }
             fetchAgent()
         }
     }, [resolvedParams])
-
-    const handleBuy = () => {
-        if (!isConnected) return alert('Please connect your wallet first')
-        if (chainId !== 97) {
-            switchChain({ chainId: 97 })
-            return
-        }
-        if (!amount || parseFloat(amount) <= 0) return alert('Enter a valid amount')
-        if (!agent) return
-
-        try {
-            writeContract({
-                address: LAUNCHPAD_ADDRESS,
-                abi: LAUNCHPAD_ABI,
-                functionName: 'pledge',
-                args: [BigInt(agent.id)],
-                value: parseEther(amount),
-            })
-        } catch (err) {
-            console.error('Write contract failed:', err)
-            alert('Transaction failed to start. Check console.')
-        }
-    }
 
     if (loading) return (
         <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
@@ -91,45 +60,79 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
             <div className="text-text-dim text-sm font-mono tracking-widest uppercase">Establishing Uplink...</div>
         </div>
     )
+
     if (!agent) return (
         <div className="min-h-screen flex flex-col items-center justify-center text-text-dim space-y-4">
             <div className="text-xl font-bold text-white">Signal Lost</div>
-            <p className="text-sm max-w-md text-center">The requested agent uplink could not be established. It may still be initializing in the Forge.</p>
-            <button
-                onClick={() => window.location.reload()}
-                className="px-6 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors border border-white/5 flex items-center gap-2"
-            >
+            <p className="text-sm max-w-md text-center">The requested agent uplink could not be established.</p>
+            <button onClick={() => window.location.reload()} className="px-6 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors border border-white/5 flex items-center gap-2">
                 <Zap className="w-4 h-4 text-accent" /> Retry Connection
             </button>
         </div>
     )
 
-    const isCreator = isConnected && agent && address && agent.creator.toLowerCase() === address.toLowerCase()
+    // STRICT SEPARATION OF VIEWS
+    const isLive = agent.launched || agent.bondingProgress >= 100
+
+    return isLive
+        ? <LiveTradingView agent={agent} logs={logs} setLogs={setLogs} />
+        : <ICOLaunchView agent={agent} />
+}
+
+// ----------------------------------------------------------------------
+// 1. LIVE TRADING VIEW (The Trenches)
+// ----------------------------------------------------------------------
+function LiveTradingView({ agent, logs, setLogs }: { agent: Agent, logs: any[], setLogs: (l: any[]) => void }) {
+    const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy')
+    const [amount, setAmount] = useState('')
 
     return (
-        <div className="h-[calc(100vh-32px)] flex flex-col gap-6 overflow-hidden max-w-[1920px] mx-auto">
-            {/* Header / Stats Bar */}
-            <motion.div
-                initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                className="h-20 rounded-[24px] bg-surface/80 backdrop-blur-xl border border-white/5 flex items-center px-8 justify-between shrink-0 z-20 shadow-lg"
-            >
-                <div className="flex items-center gap-6">
-                    <Link href="/" className="flex items-center gap-2 text-text-dim hover:text-white transition-colors group">
-                        <div className="p-2 rounded-full bg-white/5 group-hover:bg-white/10 border border-white/5">
-                            <ChevronLeft className="w-4 h-4" />
-                        </div>
+        <div className="h-[calc(100vh-32px)] flex flex-col gap-4 overflow-hidden max-w-[1920px] mx-auto p-4">
+            {/* Header */}
+            <header className="h-16 shrink-0 flex items-center justify-between px-6 bg-surface/80 border border-white/5 rounded-2xl backdrop-blur-md">
+                <div className="flex items-center gap-4">
+                    <Link href="/" className="p-2 hover:bg-white/5 rounded-lg text-text-dim hover:text-white transition-colors">
+                        <ChevronLeft className="w-5 h-5" />
                     </Link>
-                    <div className="h-8 w-[1px] bg-white/5" />
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-[16px] bg-gradient-to-br from-purple-900/50 to-blue-900/50 flex items-center justify-center text-xl font-bold text-white shadow-inner border border-white/10 overflow-hidden">
-                            {agent.metadataURI?.includes('http') ? (
-                                <img src={JSON.parse(agent.metadataURI).image} alt={agent.ticker} className="w-full h-full object-cover" />
-                            ) : (
-                                <span>{agent.ticker.charAt(0)}</span>
-                            )}
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded bg-accent/20 flex items-center justify-center text-accent font-bold">
+                            {agent.ticker[0]}
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold leading-none text-white tracking-tight">{agent.name}</h1>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-2xl font-bold leading-none text-white tracking-tight">{agent.name}</h1>
+                                {agent.identity && (
+                                    <div className="relative group">
+                                        <div className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-text-dim hover:text-white cursor-help transition-colors">
+                                            <Shield className="w-3.5 h-3.5" />
+                                        </div>
+                                        {/* Popover */}
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-[#111] border border-white/10 rounded-xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none group-hover:pointer-events-auto">
+                                            <div className="text-[10px] uppercase text-text-dim font-bold tracking-widest mb-3 border-b border-white/5 pb-2">Verified Identity</div>
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400">
+                                                        <Users className="w-4 h-4" /> {/* X Icon placeholder */}
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-[10px] text-text-dim">X / Twitter</div>
+                                                        <div className="text-xs text-white font-mono">@{agent.identity.username}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400">
+                                                        <Shield className="w-4 h-4" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-[10px] text-text-dim">Secure Email</div>
+                                                        <div className="text-xs text-white font-mono break-all">{agent.identity.email}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className="text-xs text-accent font-mono tracking-wider bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">${agent.ticker}</span>
                                 {isCreator && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full text-white/50">CREATOR_MODE</span>}
@@ -137,327 +140,272 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
                         </div>
                     </div>
                 </div>
-
-                <div className="flex items-center gap-12">
-                    <Stat label="Market Cap" value={formatMarketCap(0)} />
-                    <Stat label="Bonding" value={`${agent.bondingProgress.toFixed(1)}%`} color="text-accent" />
-                    <Stat label="Status" value="Live" color="text-success" indicator />
+                <div className="flex gap-8 text-xs font-mono">
+                    <div>
+                        <div className="text-text-dim">PRICE</div>
+                        <div className="text-white font-bold">$0.00042</div>
+                    </div>
+                    <div>
+                        <div className="text-text-dim">MKT CAP</div>
+                        <div className="text-white font-bold">$420k</div>
+                    </div>
                 </div>
-            </motion.div>
+            </header>
 
-
-            {/* 3-Panel Grid */}
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
-
-                {/* LEFT: Thought Stream (Logic) */}
-                <motion.div
-                    initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.1 }}
-                    className="lg:col-span-3 rounded-[32px] bg-surface/50 backdrop-blur-md border border-white/5 flex flex-col overflow-hidden relative order-3 lg:order-1 h-[500px] lg:h-auto"
-                >
-                    <div className="scanline-overlay opacity-30" />
-                    <PanelHeader icon={Brain} title="Thought Stream" />
-                    <div className="flex-1 overflow-y-auto p-0 relative custom-scrollbar">
-                        <SocialFeed ticker={agent.ticker} agentId={agent.id} setLogs={setLogs} />
+            {/* Trading Grid */}
+            <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
+                {/* LEFT: Chart (8 cols) */}
+                <div className="col-span-8 bg-[#0A0A0B] rounded-2xl border border-white/5 overflow-hidden flex flex-col relative">
+                    <div className="absolute top-4 left-4 z-10 flex gap-2">
+                        <div className="bg-white/10 backdrop-blur px-2 py-1 rounded text-[10px] text-white font-mono">15m</div>
+                        <div className="bg-transparent px-2 py-1 rounded text-[10px] text-text-dim font-mono hover:bg-white/5 cursor-pointer">1H</div>
+                        <div className="bg-transparent px-2 py-1 rounded text-[10px] text-text-dim font-mono hover:bg-white/5 cursor-pointer">4H</div>
                     </div>
-                </motion.div>
+                    {/* Simulated TradingView Widget */}
+                    <iframe
+                        src={`https://dexscreener.com/bsc/${LAUNCHPAD_ADDRESS}?embed=1&theme=dark&trades=0&info=0`}
+                        className="w-full h-full border-0 opacity-80 hover:opacity-100 transition-opacity"
+                    />
 
-                {/* CENTER: Visuals & Data */}
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
-                    className="lg:col-span-6 rounded-[32px] bg-surface/50 backdrop-blur-md border border-white/5 flex flex-col overflow-hidden order-1 lg:order-2 min-h-[500px]"
-                >
-
-
-                    <div className="flex-1 overflow-hidden relative">
-                        {activeTab === 'manage' ? (
-                            <div className="h-full overflow-y-auto p-8">
-                                <ManageAgent agent={agent} />
-                            </div>
-                        ) : (
-                            <div className="h-full flex flex-col">
-                                {/* Chart Area */}
-                                <div className="flex-1 relative flex items-center justify-center group overflow-hidden">
-                                    {agent.bondingProgress >= 100 ? (
-                                        // Live Chart View
-                                        <div className="w-full h-full bg-[#0A0A0B] relative">
-                                            <iframe
-                                                src={`https://dexscreener.com/bsc/${LAUNCHPAD_ADDRESS}?embed=1&theme=dark&trades=0&info=0`}
-                                                className="w-full h-full border-0"
-                                            />
-                                        </div>
-                                    ) : (
-                                        // Incubator / Launchpad View
-                                        <div className="text-center z-10 p-12">
-                                            <div className="relative w-32 h-32 mx-auto mb-6">
-                                                <div className="absolute inset-0 bg-accent blur-[60px] opacity-20 animate-pulse" />
-                                                <div className="relative w-full h-full rounded-full border-4 border-accent/30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                                                    <span className="text-3xl font-bold text-white">{agent.bondingProgress.toFixed(0)}%</span>
-                                                </div>
-                                            </div>
-
-                                            <h3 className="text-xl font-bold text-white mb-2">Incubation in Progress</h3>
-                                            <p className="text-text-dim text-sm max-w-sm mx-auto mb-6">
-                                                This agent is currently in the bonding phase. Once the curve reaches 100%, it will graduate to the live market.
-                                            </p>
-
-                                            <div className="flex justify-center gap-4">
-                                                <div className="px-4 py-2 rounded-lg bg-surface border border-white/5 text-xs font-mono text-text-dim">
-                                                    TARGET: <span className="text-white">10 BNB</span>
-                                                </div>
-                                                <div className="px-4 py-2 rounded-lg bg-surface border border-white/5 text-xs font-mono text-text-dim">
-                                                    RAISED: <span className="text-accent">{(10 * agent.bondingProgress / 100).toFixed(2)} BNB</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Terminal Logs */}
-                                <div className="h-48 border-t border-white/5 bg-[#050505] p-5 font-mono text-xs overflow-y-auto custom-scrollbar">
-                                    <div className="flex items-center gap-2 text-text-dim uppercase text-[10px] tracking-widest mb-3 opacity-50">
-                                        <Terminal className="w-3 h-3" /> System Logs
-                                    </div>
-                                    <div className="space-y-1.5 text-text-secondary/80 font-light">
-                                        {logs.length > 0 ? logs.map((log, i) => (
-                                            <LogEntry key={i} type={log.type} msg={log.msg} timestamp={log.timestamp} />
-                                        )) : (
-                                            <div className="text-text-dim/30">Waiting for agent loop...</div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </motion.div>
-
-
-                {/* RIGHT: Command (Trade & Gov) */}
-                <motion.div
-                    initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.3 }}
-                    className="lg:col-span-3 rounded-[32px] bg-surface/50 backdrop-blur-md border border-white/5 flex flex-col overflow-hidden order-2 lg:order-3"
-                >
-                    <PanelHeader icon={Gavel} title="Command Center" />
-
-                    <div className="p-6 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
-                        {/* Trade Module */}
-                        <div>
-                            <div className="p-1 rounded-xl bg-black/40 border border-white/5 flex gap-1 mb-6">
-                                <TradeTab active={tradeType === 'buy'} onClick={() => setTradeType('buy')} label="Buy" type="buy" />
-                                <TradeTab active={tradeType === 'sell'} onClick={() => setTradeType('sell')} label="Sell" type="sell" />
-                            </div>
-
-                            <div className="space-y-4">
-                                <AmountInput value={amount} onChange={setAmount} />
-                                <div className="flex gap-2">
-                                    {['0.1', '0.5', '1.0', 'MAX'].map((val) => (
-                                        <QuickAmount key={val} value={val} onClick={() => setAmount(val === 'MAX' ? '5.0' : val)} />
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Bonding Curve */}
-                            <div className="mt-8 p-4 rounded-xl bg-white/5 border border-white/5">
-                                <div className="flex justify-between text-[10px] uppercase text-text-dim mb-2">
-                                    <span>Bonding Progress</span>
-                                    <span className="text-white font-mono">{agent.bondingProgress.toFixed(1)}%</span>
-                                </div>
-                                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <motion.div
-                                        initial={{ width: 0 }} animate={{ width: `${agent.bondingProgress}%` }}
-                                        className="h-full bg-accent shadow-[0_0_10px_rgba(124,58,237,0.5)]"
-                                    />
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleBuy}
-                                disabled={isPending || isConfirming || !isConnected}
-                                className={cn(
-                                    "w-full py-5 mt-6 rounded-2xl text-sm font-bold uppercase tracking-wider transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]",
-                                    !isConnected ? 'bg-white/10 text-white cursor-not-allowed' :
-                                        tradeType === 'buy' ? 'bg-accent text-white shadow-accent/20 hover:bg-accent-dim' : 'bg-danger text-white shadow-danger/20 hover:bg-red-600'
-                                )}
-                            >
-                                {isPending ? 'Confirming...' : !isConnected ? 'Connect Wallet' : `Execute ${tradeType}`}
-                            </button>
+                    {/* Terminal / Chat Overlay at bottom */}
+                    <div className="h-48 border-t border-white/5 bg-[#050505] flex flex-col">
+                        <div className="h-8 border-b border-white/5 px-4 flex items-center gap-4 text-[10px] font-bold text-text-dim uppercase tracking-wider">
+                            <span className="text-white border-b border-accent h-full flex items-center">System Logs</span>
+                            <span className="hover:text-white cursor-pointer h-full flex items-center">Public Chat</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-2 font-mono text-[10px] space-y-1">
+                            <SocialFeed ticker={agent.ticker} agentId={agent.id} setLogs={setLogs} />
                         </div>
                     </div>
-                </motion.div>
+                </div>
+
+                {/* RIGHT: Order Form (4 cols) */}
+                <div className="col-span-4 bg-surface/50 border border-white/5 rounded-2xl p-4 flex flex-col gap-4">
+
+                    {/* Tabs */}
+                    <div className="grid grid-cols-2 gap-1 p-1 bg-black/40 rounded-lg">
+                        <button onClick={() => setTradeType('buy')} className={`py-2 text-xs font-bold uppercase rounded ${tradeType === 'buy' ? 'bg-success text-black' : 'text-text-dim hover:text-white'}`}>Buy</button>
+                        <button onClick={() => setTradeType('sell')} className={`py-2 text-xs font-bold uppercase rounded ${tradeType === 'sell' ? 'bg-danger text-black' : 'text-text-dim hover:text-white'}`}>Sell</button>
+                    </div>
+
+                    {/* Inputs */}
+                    <div className="space-y-4 flex-1">
+                        <div className="relative">
+                            <div className="text-[10px] text-text-dim uppercase mb-1 flex justify-between">
+                                <span>Amount ({agent.ticker})</span>
+                                <span>Bal: 0.00</span>
+                            </div>
+                            <input type="number" placeholder="0.0" className="w-full bg-[#050505] border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-white/30 outline-none" />
+                        </div>
+
+                        {/* Quick Select */}
+                        <div className="grid grid-cols-4 gap-2">
+                            {['10%', '25%', '50%', 'MAX'].map(q => (
+                                <button key={q} className="py-1 rounded bg-white/5 text-[10px] text-text-dim hover:bg-white/10">{q}</button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Submit */}
+                    <button className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider ${tradeType === 'buy' ? 'bg-success text-black hover:bg-green-400' : 'bg-danger text-black hover:bg-red-500'} transition-colors`}>
+                        Place {tradeType} Order
+                    </button>
+
+                    {/* Order Book Mock */}
+                    <div className="mt-4 border-t border-white/5 pt-4">
+                        <div className="text-[10px] text-text-dim uppercase mb-2">Order Book</div>
+                        <div className="space-y-1 font-mono text-[10px]">
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="flex justify-between text-danger/70">
+                                    <span>{(0.00045 + (i * 0.00001)).toFixed(5)}</span>
+                                    <span>{(1000 + i * 500).toFixed(0)}</span>
+                                </div>
+                            ))}
+                            <div className="text-white font-bold my-1 text-center bg-white/5 py-1">0.00042</div>
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="flex justify-between text-success/70">
+                                    <span>{(0.00041 - (i * 0.00001)).toFixed(5)}</span>
+                                    <span>{(2000 + i * 300).toFixed(0)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
     )
 }
 
-// --- SUB COMPONENTS ---
+// ----------------------------------------------------------------------
+// 2. ICO / LAUNCHPAD VIEW (Incubation)
+// ----------------------------------------------------------------------
+function ICOLaunchView({ agent }: { agent: Agent }) {
+    const [amount, setAmount] = useState('')
+    const { isConnected } = useAccount()
+    const { switchChain } = useSwitchChain()
+    const { data: hash, writeContract, isPending } = useWriteContract()
+    const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash })
+    const chainId = useChainId()
 
-function Stat({ label, value, color = "text-white", indicator }: { label: string, value: string, color?: string, indicator?: boolean }) {
-    return (
-        <div className="text-right">
-            <div className="text-[10px] text-text-dim uppercase tracking-wider mb-1 font-semibold">{label}</div>
-            <div className="flex items-center justify-end gap-2">
-                {indicator && <span className={`w-1.5 h-1.5 rounded-full animate-pulse bg-current ${color}`} />}
-                <div className={`font-mono text-sm font-medium ${color}`}>{value}</div>
-            </div>
-        </div>
-    )
-}
+    const handlePledge = () => {
+        if (!isConnected) return alert('Connect Wallet')
+        if (chainId !== 97) return switchChain({ chainId: 97 })
+        if (!amount) return
 
-function PanelHeader({ icon: Icon, title }: { icon: any, title: string }) {
-    return (
-        <div className="p-6 border-b border-white/5 bg-white/[0.02] flex items-center gap-3">
-            <Icon className="w-4 h-4 text-text-secondary" />
-            <h2 className="text-xs font-bold uppercase tracking-widest text-text-secondary">{title}</h2>
-        </div>
-    )
-}
-
-function TabButton({ active, onClick, label, icon: Icon }: { active: boolean, onClick: () => void, label: string, icon: any }) {
-    return (
-        <button
-            onClick={onClick}
-            className={cn(
-                "flex items-center gap-2 h-full px-1 border-b-2 transition-all text-xs font-bold uppercase tracking-wide",
-                active ? "border-white text-white" : "border-transparent text-text-dim hover:text-white"
-            )}
-        >
-            <Icon className="w-4 h-4" /> {label}
-        </button>
-    )
-}
-
-function TradeTab({ active, onClick, label, type }: { active: boolean, onClick: () => void, label: string, type: 'buy' | 'sell' }) {
-    return (
-        <button
-            onClick={onClick}
-            className={cn(
-                "flex-1 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
-                active
-                    ? (type === 'buy' ? 'bg-accent text-white shadow-lg' : 'bg-danger text-white shadow-lg')
-                    : 'text-text-dim hover:text-white'
-            )}
-        >
-            {label}
-        </button>
-    )
-}
-
-function AmountInput({ value, onChange }: { value: string, onChange: (v: string) => void }) {
-    return (
-        <div className="relative group">
-            <input
-                type="number"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="w-full bg-[#050505] border border-white/10 rounded-2xl py-4 px-5 text-white font-mono text-lg focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all placeholder:text-text-dim/30 group-hover:border-white/20"
-                placeholder="0.0"
-            />
-            <div className="absolute right-5 top-1/2 -translate-y-1/2 text-xs text-text-dim font-mono pointer-events-none">BNB</div>
-            <Wallet className="absolute right-14 top-1/2 -translate-y-1/2 text-text-dim/20 w-4 h-4 pointer-events-none" />
-        </div>
-    )
-}
-
-function QuickAmount({ value, onClick }: { value: string, onClick: () => void }) {
-    return (
-        <button
-            onClick={onClick}
-            className="flex-1 py-2 rounded-xl border border-white/10 bg-white/5 text-[10px] font-mono text-text-dim hover:text-white hover:border-white/30 hover:bg-white/10 transition-all active:scale-95"
-        >
-            {value}
-        </button>
-    )
-}
-
-function LogEntry({ type, msg, timestamp }: { type: string, msg: string, timestamp?: number }) {
-    const colors: Record<string, string> = {
-        INFO: 'text-text-dim',
-        TEE: 'text-accent',
-        NET: 'text-blue-400',
-        EXEC: 'text-success',
-        SKILL: 'text-purple-400',
-        THOUGHT: 'text-yellow-400',
-        POST: 'text-green-400',
-        ERROR: 'text-red-500'
+        writeContract({
+            address: LAUNCHPAD_ADDRESS,
+            abi: LAUNCHPAD_ABI,
+            functionName: 'pledge',
+            args: [BigInt(agent.id)],
+            value: parseEther(amount)
+        })
     }
-    const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour12: false }) : new Date().toLocaleTimeString([], { hour12: false });
+
+    const metadata = agent.metadataURI ? JSON.parse(agent.metadataURI) : {}
+    const progress = Math.min(agent.bondingProgress, 100)
 
     return (
-        <div className="flex gap-3 text-[10px]">
-            <span className="text-text-dim/30 w-12 shrink-0">{timeStr}</span>
-            <span className={`${colors[type] || 'text-white'} font-bold w-12 shrink-0`}>[{type}]</span>
-            <span className="text-white/60 font-medium">{msg}</span>
+        <div className="min-h-screen py-12 px-4 flex justify-center items-start">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-purple-900/10 pointer-events-none" />
+
+            <div className="w-full max-w-5xl z-10 grid grid-cols-1 md:grid-cols-2 gap-12">
+
+                {/* LEFT: Project Info */}
+                <div className="space-y-8">
+                    <Link href="/launchpad" className="text-text-dim hover:text-white flex items-center gap-2 text-sm transition-colors mb-8">
+                        <ChevronLeft className="w-4 h-4" /> Back to Launchpad
+                    </Link>
+
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden border border-white/20 shadow-2xl">
+                        <img src={metadata.image || `https://api.dicebear.com/9.x/shapes/svg?seed=${agent.ticker}`} className="w-full h-full object-cover" />
+                    </div>
+
+                    <div>
+                        <h1 className="text-5xl font-bold text-white mb-2 tracking-tight">{agent.name}</h1>
+                        <div className="flex items-center gap-4 text-lg text-text-secondary">
+                            <span className="font-mono text-accent">${agent.ticker}</span>
+                            <span className="flex items-center gap-1 text-xs bg-white/5 rounded-full px-3 py-1 text-text-dim border border-white/5">
+                                <Rocket className="w-3 h-3" /> Incubating
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="prose prose-invert prose-sm text-text-secondary/80 leading-relaxed font-light">
+                        <h3 className="text-white font-bold uppercase tracking-widest text-xs mb-4">Manifesto</h3>
+                        <p>{metadata.description || "No manifesto provided."}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                            <div className="text-xs text-text-dim uppercase mb-1">Target Raise</div>
+                            <div className="text-xl font-mono text-white">{formatCompactNumber(Number(agent.targetAmount))} BNB</div>
+                        </div>
+                        <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                            <div className="text-xs text-text-dim uppercase mb-1">Min Pledge</div>
+                            <div className="text-xl font-mono text-white">0.01 BNB</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* RIGHT: Participation Card */}
+                <div className="bg-surface border border-white/10 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-32 bg-accent/10 blur-[80px] rounded-full pointer-events-none" />
+
+                    <h2 className="text-2xl font-bold text-white mb-6">Participate in Presale</h2>
+
+                    <div className="mb-8">
+                        <div className="flex justify-between text-sm mb-2">
+                            <span className="text-text-dim">Funding Progress</span>
+                            <span className="text-white font-mono">{progress.toFixed(2)}%</span>
+                        </div>
+                        <div className="h-4 w-full bg-[#0A0A0B] rounded-full overflow-hidden border border-white/5">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${progress}%` }}
+                                className="h-full bg-gradient-to-r from-accent to-purple-400"
+                            />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-text-dim mt-2">
+                            <span>0 BNB</span>
+                            <span>{formatCompactNumber(Number(agent.targetAmount))} BNB</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 mb-8">
+                        <div className="relative">
+                            <input
+                                type="number"
+                                value={amount}
+                                onChange={e => setAmount(e.target.value)}
+                                placeholder="0.0"
+                                className="w-full bg-[#0A0A0B] border border-white/10 focus:border-accent rounded-xl py-4 px-4 text-2xl text-white font-mono outline-none transition-colors"
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-text-dim font-bold">BNB</div>
+                        </div>
+                        <div className="flex gap-2">
+                            {['0.1', '0.5', '1.0', '5.0'].map(val => (
+                                <button key={val} onClick={() => setAmount(val)} className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-mono text-text-dim transition-colors">
+                                    {val}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handlePledge}
+                        disabled={!isConnected || isPending || isConfirming}
+                        className="w-full py-5 rounded-2xl bg-white text-black font-bold text-lg hover:bg-gray-200 transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] disabled:opacity-50"
+                    >
+                        {isPending ? 'Confirming...' : 'Pledge BNB'}
+                    </button>
+
+                    <div className="mt-6 flex items-center justify-center gap-2 text-[10px] text-text-dim">
+                        <Shield className="w-3 h-3" />
+                        <span>Secure TEE Enclave Verification</span>
+                    </div>
+                </div>
+
+            </div>
         </div>
     )
 }
 
-// Live Social Feed & Logs Hook
+// ----------------------------------------------------------------------
+// HELPERS
+// ----------------------------------------------------------------------
 function SocialFeed({ ticker, agentId, setLogs }: { ticker: string, agentId?: string, setLogs: (logs: any[]) => void }) {
     const [tweets, setTweets] = useState<any[]>([])
-    const [loading, setLoading] = useState(true)
-
     useEffect(() => {
         if (!agentId) return;
-
         const fetchData = async () => {
             try {
                 // Fetch Tweets
                 const resTweets = await fetch(`/api/agents/${agentId}/tweets`);
-                if (resTweets.ok) {
-                    const data = await resTweets.json();
-                    setTweets(data);
-                }
-
-                // Fetch Logs (and lift up to parent for Terminal)
+                if (resTweets.ok) setTweets(await resTweets.json());
+                // Fetch Logs
                 const resLogs = await fetch(`/api/agents/${agentId}/logs`);
-                if (resLogs.ok) {
-                    const data = await resLogs.json();
-                    setLogs(data);
-                }
+                if (resLogs.ok) setLogs(await resLogs.json());
             } catch (e) {
                 console.error("Polling error", e);
-            } finally {
-                setLoading(false);
             }
         }
-
-        fetchData(); // Initial
-        const interval = setInterval(fetchData, 5000); // Poll every 5s
-
+        fetchData();
+        const interval = setInterval(fetchData, 2000); // 2s polling
         return () => clearInterval(interval);
     }, [agentId])
 
-    if (tweets.length === 0 && !loading) return <div className="p-8 text-center text-text-dim text-xs">Processing initial thought stream...</div>
+    if (tweets.length === 0) return <div className="p-4 text-text-dim/30">Connecting to stream...</div>
 
     return (
-        <div className="space-y-0 relative">
-            {/* Timeline Line */}
-            <div className="absolute left-[23px] top-0 bottom-0 w-[1px] bg-white/5" />
-
+        <div className="space-y-1">
             {tweets.map((tweet, i) => (
-                <div key={tweet.id || i} className="group relative pl-12 pr-6 py-4 hover:bg-white/[0.02] transition-colors border-b border-white/[0.02]">
-                    <div className="absolute left-[20px] top-6 w-[7px] h-[7px] rounded-full bg-[#1A1A1A] border border-white/20 group-hover:border-accent group-hover:bg-accent transition-colors z-10" />
-
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-mono text-accent/70 group-hover:text-accent font-bold">AGENT_{ticker}_{tweet.id?.substring(0, 4)}</span>
-                        <span className="text-[9px] text-text-dim">{new Date(tweet.timestamp).toLocaleTimeString()}</span>
-                    </div>
-                    <p className="text-xs text-text-secondary font-light leading-relaxed">
-                        {tweet.content}
-                    </p>
-                    {tweet.image && (
-                        <div className="mt-3 rounded-lg overflow-hidden border border-white/10">
-                            <img src={`data:image/png;base64,${tweet.image.replace('data:image/png;base64,', '')}`} alt="Agent View" className="w-full h-auto opacity-80" />
-                        </div>
-                    )}
+                <div key={i} className="flex gap-2 text-text-secondary/80">
+                    <span className="text-text-dim shrink-0">{new Date(tweet.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                    <span className="text-accent font-bold shrink-0">LOG</span>
+                    <span className="truncate">{tweet.content}</span>
                 </div>
             ))}
         </div>
     )
-}
-
-// Utility
-import { clsx, type ClassValue } from 'clsx'
-import { twMerge } from 'tailwind-merge'
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs))
 }

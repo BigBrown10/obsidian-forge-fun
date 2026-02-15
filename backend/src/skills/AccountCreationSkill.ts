@@ -23,6 +23,14 @@ export class AccountCreationSkill implements ISkill {
         }
 
         const platform = input.platform || "twitter";
+        const isSimulated = input.simulate || false;
+
+        if (isSimulated) {
+            console.log(`[SIM] Mocking account creation for ${platform}...`);
+            await new Promise(r => setTimeout(r, 1500)); // Fake delay
+            return `[SIMULATION] Successfully provisioned ${platform} account for ${identity.email}. Verification bypassed.`;
+        }
+
         console.log(`🛠️ Attempting to create ${platform} account for ${identity.username}...`);
 
         if (platform === 'twitter') {

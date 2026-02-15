@@ -34,8 +34,11 @@ const fetchAgents = async () => {
 
         const agents = []
 
-        // 2. Iterate and fetch details
-        for (let i = 0; i < Number(count); i++) {
+        // 2. Iterate and fetch details (Only latest 5)
+        const start = Math.max(0, Number(count) - 5);
+        console.log(`[INIT] Loading agents from index ${start} to ${count} (Latest 5)...`);
+
+        for (let i = start; i < Number(count); i++) {
             try {
                 const id = BigInt(i)
 
@@ -112,13 +115,18 @@ const app = new Elysia({ adapter: node() })
             })
             // serialize bigints
             const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data
+
+            // Fetch Identity
+            const identity = agentManager.getAgentIdentity(id);
+
             return {
                 id,
                 creator, name, ticker, metadataURI,
                 targetAmount: targetAmount.toString(),
                 pledgedAmount: pledgedAmount.toString(),
                 createdAt: createdAt.toString(),
-                launched, tokenAddress
+                launched, tokenAddress,
+                identity // <--- Exposed here
             }
         } catch (e) {
             return { error: 'Agent not found' }

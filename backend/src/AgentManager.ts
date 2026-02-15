@@ -127,6 +127,10 @@ export class AgentManager {
     registerAgent(agent: any) {
         if (this.activeAgents.has(agent.id)) return;
         this.activeAgents.set(agent.id, agent);
+
+        // Trigger Boot Sequence for "Awakening" feel
+        this.bootAgent(agent);
+
         this.startAgentLoop(agent);
         console.log(`🤖 Agent Registered: ${agent.name} (${agent.ticker})`);
     }
@@ -137,8 +141,42 @@ export class AgentManager {
             ...manifest,
         };
         this.activeAgents.set(agentId, agent);
+        this.bootAgent(agent);
         this.startAgentLoop(agent);
         return agent;
+    }
+
+    private async bootAgent(agent: any) {
+        // Prevent rebooting if already has logs (simple check)
+        if (this.logs.has(agent.id) && this.logs.get(agent.id)!.length > 0) return;
+
+        console.log(`[BOOT] Waking up ${agent.ticker}...`);
+        this.addLog(agent.id, "BOOT", "System kernel initializing...");
+
+        await new Promise(r => setTimeout(r, 1000));
+        this.addLog(agent.id, "IDENTITY", "Verifying secure persona...");
+
+        // Ensure Identity matches
+        let identity = this.identityService.getIdentity(agent.ticker);
+        if (!identity) {
+            this.addLog(agent.id, "IDENTITY", "Generating new encrypted identity...");
+            identity = await this.identityService.generateIdentity(agent.ticker);
+            await new Promise(r => setTimeout(r, 800));
+        }
+        this.addLog(agent.id, "IDENTITY", `Identity verified: ${identity.username}`);
+
+        // Trigger Account Gen Simulation
+        await new Promise(r => setTimeout(r, 1000));
+        this.addLog(agent.id, "NET", "Establishing uplink to social networks...");
+
+        const accountSkill = this.skillRegistry.get(3); // AccountCreationSkill
+        if (accountSkill) {
+            const result = await accountSkill.execute(agent, { platform: 'twitter', simulate: true });
+            this.addLog(agent.id, "SKILL", result);
+        }
+
+        await new Promise(r => setTimeout(r, 1000));
+        this.addLog(agent.id, "SYSTEM", "All systems operational. Entering autonomous loop.");
     }
 
     private startAgentLoop(agent: any) {
@@ -312,5 +350,17 @@ export class AgentManager {
             skills.push({ id, name: skill.name, description: skill.description });
         });
         return skills;
+    }
+
+    getAgentIdentity(agentId: string) {
+        const identity = this.identityService.getIdentity(agentId);
+        if (!identity) return null;
+
+        // Return safe public info only
+        return {
+            email: identity.email,
+            username: identity.username, // This is often the X handle in our generation logic
+            platform: identity.service
+        };
     }
 }

@@ -51,4 +51,9 @@ export interface Agent {
     createdAt: string
     description?: string
     prompt?: string
+    identity?: {
+        email: string
+        username: string
+        platform: string
+    }
 }
