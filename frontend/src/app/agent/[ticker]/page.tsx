@@ -28,9 +28,6 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
     // Derived State
     const isCreator = agent && address ? agent.creator.toLowerCase() === address.toLowerCase() : false
 
-    // Derived State
-    const isCreator = agent && address ? agent.creator.toLowerCase() === address.toLowerCase() : false
-
     useEffect(() => {
         if (resolvedParams) {
             let retries = 0
