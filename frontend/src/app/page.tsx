@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Search, Activity } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { getAgents, type Agent } from '../lib/api'
-import AgentCard from '../components/AgentCard'
+import AgentCardV2 from '../components/AgentCardV2'
 import GraduationRow from '../components/GraduationRow'
 
 export default function Dashboard() {
@@ -50,12 +50,12 @@ export default function Dashboard() {
       <GraduationRow agents={agents} onSelect={handleSelectAgent} />
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-2 border-red-500">
         {agents.filter(a => a.launched || a.bondingProgress >= 100).length > 0 ? (
           agents
             .filter(a => a.launched || a.bondingProgress >= 100)
             .map(agent => (
-              <AgentCard key={agent.id} agent={agent} onClick={() => handleSelectAgent(agent)} />
+              <AgentCardV2 key={agent.id} agent={agent} onClick={() => handleSelectAgent(agent)} />
             ))
         ) : (
           <div className="col-span-full py-32 text-center">
