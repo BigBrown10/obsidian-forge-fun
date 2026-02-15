@@ -18,7 +18,7 @@ export default function AgentCard({ agent, onClick, minimalist = false }: { agen
     const isLaunched = agent.launched
 
     // safe metadata parsing - Fallback if JSON is weird
-    let image = `https://api.dicebear.com/9.x/shapes/svg?seed=${agent.ticker}`
+    let image = `https://api.dicebear.com/9.x/avataaars/svg?seed=${agent.ticker}` // FORCE_REFRESH_V2
     try {
         if (agent.metadataURI) {
             const metadata = JSON.parse(agent.metadataURI)
