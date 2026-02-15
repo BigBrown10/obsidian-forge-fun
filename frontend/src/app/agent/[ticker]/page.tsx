@@ -73,11 +73,11 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
     )
 
     // STRICT SEPARATION OF VIEWS
-    const isLive = agent.launched || agent.bondingProgress >= 100
+    // PUMP.FUN MODEL: All agents are "Live" (Tradable) immediately on creation.
+    // "Incubator" is just the bonding curve phase.
+    const isLive = true
 
-    return isLive
-        ? <LiveTradingView agent={agent} logs={logs} setLogs={setLogs} isCreator={isCreator} />
-        : <ICOLaunchView agent={agent} />
+    return <LiveTradingView agent={agent} logs={logs} setLogs={setLogs} isCreator={isCreator} />
 }
 
 // ----------------------------------------------------------------------
