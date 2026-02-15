@@ -33,8 +33,6 @@ export class LLMService {
                 ],
                 max_completion_tokens: 280, // Tweet-length thoughts
                 temperature: 0.9,
-                presence_penalty: 0.6,
-                frequency_penalty: 0.5,
             };
 
             const res = await fetch(url, {
