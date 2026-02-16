@@ -3,7 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { type Agent } from '../lib/api'
-import AgentCard from './AgentCard'
+import TrenchesCard from './TrenchesCard'
 import { Flame } from 'lucide-react'
 
 export default function GraduationRow({ agents, onSelect }: { agents: Agent[], onSelect: (a: Agent) => void }) {
@@ -23,7 +23,7 @@ export default function GraduationRow({ agents, onSelect }: { agents: Agent[], o
                 {hotAgents.map(agent => (
                     <div key={agent.id} className="relative group">
                         <div className="absolute -inset-0.5 bg-gradient-to-r from-accent to-blue-600 rounded-[26px] blur opacity-30 group-hover:opacity-75 transition duration-500" />
-                        <AgentCard agent={agent} onClick={() => onSelect(agent)} />
+                        <TrenchesCard agent={agent} onClick={() => onSelect(agent)} />
                     </div>
                 ))}
             </div>
