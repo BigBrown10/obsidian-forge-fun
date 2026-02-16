@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Egg, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { getAgents, type Agent } from '../../lib/api'
-import AgentCard from '../../components/AgentCard'
+import TrenchesCard from '../../components/TrenchesCard'
 
 export default function Incubator() {
     const [agents, setAgents] = useState<Agent[]>([])
@@ -27,7 +27,7 @@ export default function Incubator() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {agents.length > 0 ? (
                     agents.map(agent => (
-                        <AgentCard key={agent.id} agent={agent} onClick={() => router.push(`/agent/${agent.ticker}`)} />
+                        <TrenchesCard key={agent.id} agent={agent} onClick={() => router.push(`/agent/${agent.ticker}`)} />
                     ))
                 ) : (
                     <div className="col-span-full py-32 text-center border border-white/5 rounded-[32px] bg-surface/50">

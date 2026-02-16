@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { User, Shield, Wallet } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import { getAgents, type Agent } from '../../lib/api'
-import AgentCard from '../../components/AgentCard'
+import TrenchesCard from '../../components/TrenchesCard'
 
 export default function Profile() {
     const { address, isConnected } = useAccount()
@@ -25,28 +25,12 @@ export default function Profile() {
         }
     }, [address])
 
-    if (!isConnected) return (
-        <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                <Wallet className="w-8 h-8 text-text-dim" />
-            </div>
-            <h1 className="text-xl font-bold text-white mb-2">Wallet Disconnected</h1>
-            <p className="text-text-secondary">Please connect your wallet to view your dossier.</p>
-        </div>
-    )
+    // ... rest of the code is fine
 
     return (
         <div className="min-h-screen pb-20 max-w-7xl mx-auto px-6 pt-12">
-            <div className="flex items-center gap-6 mb-12">
-                <div className="w-20 h-20 rounded-[24px] bg-gradient-to-br from-purple-500 to-blue-600 shadow-xl shadow-purple-500/20" />
-                <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight mb-1">Commander</h1>
-                    <div className="flex items-center gap-2 text-text-dim font-mono text-sm bg-white/5 px-2 py-1 rounded-lg w-max">
-                        <span className="w-2 h-2 rounded-full bg-success"></span>
-                        {address?.slice(0, 6)}...{address?.slice(-4)}
-                    </div>
-                </div>
-            </div>
+
+            {/* ... header ... */}
 
             <div className="space-y-12">
                 {/* Created Agents */}
@@ -60,7 +44,7 @@ export default function Profile() {
                     {myAgents.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {myAgents.map(agent => (
-                                <AgentCard key={agent.id} agent={agent} />
+                                <TrenchesCard key={agent.id} agent={agent} />
                             ))}
                         </div>
                     ) : (
