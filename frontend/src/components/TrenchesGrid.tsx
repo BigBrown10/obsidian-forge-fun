@@ -25,7 +25,7 @@ export default function TrenchesGrid({
 
     return (
         // Nuclear Option: Gold Border to prove deployment
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-2 border-yellow-500/50 p-4 rounded-xl bg-surface/20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 border-2 border-yellow-500/50 p-4 rounded-xl bg-surface/20">
             {activeAgents.map(agent => (
                 <TrenchesCard
                     key={agent.id}
