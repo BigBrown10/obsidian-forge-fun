@@ -190,4 +190,27 @@ setInterval(async () => {
     await fetchAgents();
 }, 30000);
 
+// --- Real-time Event Listener ---
+console.log(`[LISTENER] Watching for 'Launched' events on ${LAUNCHPAD_ADDRESS}...`);
+publicClient.watchContractEvent({
+    address: LAUNCHPAD_ADDRESS,
+    abi: [
+        parseAbiItem('event Launched(uint256 indexed id, address tokenAddress, uint256 raisedAmount)')
+    ],
+    eventName: 'Launched',
+    onLogs: async (logs) => {
+        for (const log of logs) {
+            const { id, tokenAddress, raisedAmount } = log.args;
+            console.log(`🚀 [EVENT] Agent ${id} LAUNCHED! Token: ${tokenAddress}`);
+
+            // Update Agent State immediately
+            // Note: In a real app, we'd update the DB. Here we just re-fetch to sync memory.
+            await fetchAgents();
+
+            // Trigger Agent's "First Tweet" via AgentManager?
+            // agentManager.triggerLaunchsequence(id);
+        }
+    }
+});
+
 console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`)

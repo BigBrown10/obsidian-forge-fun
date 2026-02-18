@@ -106,13 +106,31 @@ export class AccountCreationSkill implements ISkill {
     }
 
     private async createTwitterAccount(identity: any) {
+        // 1. Create Real Email via AgentMailSkill
+        console.log("📧 Generating Real Email for Verification...");
+        const { AgentMailSkill } = require('./AgentMailSkill');
+        const mailSkill = new AgentMailSkill();
+        const mailResult = await mailSkill.execute({ ticker: identity.username.substring(0, 5) }, { action: 'create' });
+
+        let emailToUse = identity.email;
+        let mailCreds: any = null;
+
+        try {
+            mailCreds = JSON.parse(mailResult);
+            if (mailCreds.email) {
+                console.log(`✅ Generated Email: ${mailCreds.email}`);
+                emailToUse = mailCreds.email;
+            }
+        } catch (e) {
+            console.warn("Could not generate real email, falling back to identity email.", e);
+        }
+
         // Playwright logic: "AgentName_Data" e.g. "Greg_18226"
         const baseName = identity.username.toLowerCase().replace(/\s+/g, '');
         const targetHandle = `${baseName}_${Math.floor(10000 + Math.random() * 90000)}`;
 
         console.log(`🐦 Navigating to X (Twitter) Signup... Target: @${targetHandle}`);
 
-        // Use BrowserService to get a fresh page
         const page = await this.browserService.newPage();
 
         try {
@@ -121,25 +139,22 @@ export class AccountCreationSkill implements ISkill {
             // Step 1: Create your account
             console.log("📝 Filling Account Info...");
 
-            // Name Input
+            // Name
             try {
                 const nameInput = page.getByLabel('Name');
                 await nameInput.waitFor({ state: 'visible', timeout: 10000 });
                 await nameInput.fill(identity.username);
             } catch (e) {
-                // Sometimes X changes selectors
                 await page.locator('input[autocomplete="name"]').fill(identity.username);
             }
 
-            // Email Input (Handle "Use email instead" if phone is default)
+            // Email
             try {
                 const useEmail = page.getByText('Use email instead');
-                if (await useEmail.isVisible()) {
-                    await useEmail.click();
-                }
+                if (await useEmail.isVisible()) await useEmail.click();
             } catch (e) { }
 
-            await page.getByLabel('Email').fill(identity.email);
+            await page.getByLabel('Email').fill(emailToUse);
 
             // DOB
             console.log("🎂 Setting Birthday...");
@@ -147,25 +162,65 @@ export class AccountCreationSkill implements ISkill {
             await page.getByLabel('Day').selectOption({ index: Math.floor(Math.random() * 27) + 1 });
             await page.getByLabel('Year').selectOption({ value: (1995 + Math.floor(Math.random() * 10)).toString() });
 
-            // Next 1
+            // Next steps
             await page.getByRole('button', { name: 'Next' }).first().click();
             await page.waitForTimeout(1000);
-
-            // Next 2 (Customize)
             await page.getByRole('button', { name: 'Next' }).first().click();
             await page.waitForTimeout(1000);
 
             // Sign Up
-            // This button might trigger the Verification Code email or generic sign up
             await page.getByRole('button', { name: 'Sign up' }).click();
-
-            // Wait for result (Code verify or Error)
             await page.waitForTimeout(5000);
+
+            // ------------------------------------------------------------------
+            // VERIFICATION CHOKEPOINT
+            // ------------------------------------------------------------------
+
+            // 1. Email Verification
+            const emailInput = page.getByLabel('Verification code');
+            if (await emailInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+                console.log("📧 Email Verification Requested. Checking Mail.tm...");
+                console.log("TODO: Implement AgentMailSkill polling for code.");
+                // If we implemented Mail.tm check here:
+                /*
+                if (mailCreds) {
+                    // poll mail
+                }
+                */
+            }
+
+            // 2. Phone Verification
+            const isPhoneReq = await page.getByText(/phone/i).count() > 0 || await page.getByLabel('Phone number').isVisible().catch(() => false);
+
+            if (isPhoneReq) {
+                console.log("📱 Phone Verification Requested. Fetching 5sim number...");
+                const { FiveSimService } = require('../services/FiveSimService');
+                const fiveSim = new FiveSimService();
+                const numberData = await fiveSim.buyNumber('twitter', 'usa');
+
+                if (numberData) {
+                    try {
+                        await page.fill('input[name="phone_number"]', numberData.phone);
+                        await page.getByRole('button', { name: 'Next' }).click();
+
+                        const code = await fiveSim.waitForCode(numberData.id);
+                        if (code) {
+                            await page.fill('input[name="verif_code"]', code);
+                            await page.getByRole('button', { name: 'Next' }).click();
+                            console.log("✅ Phone Verified!");
+                        }
+                    } catch (err) {
+                        console.error("Phone verification flow error", err);
+                    }
+                } else {
+                    console.warn("⚠️ Could not acquire 5sim number. Skipping phone verification.");
+                }
+            }
 
             // Screenshot proof of success
             const screenshotPath = `twitter_signup_${targetHandle}.png`;
             await page.screenshot({ path: screenshotPath });
-            console.log(`✅ Attempt Complete. Screenshot saved to ${screenshotPath}`);
+            console.log(`✅ Attempt Complete. Screenshot: ${screenshotPath}`);
 
         } catch (e) {
             console.error("❌ Twitter Signup Flow Failed:", e);

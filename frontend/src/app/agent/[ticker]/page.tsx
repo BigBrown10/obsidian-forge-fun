@@ -253,7 +253,7 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
                                 onClick={() => {
                                     if (!amount) return;
                                     writeContract({
-                                        address: agent.tokenAddress,
+                                        address: agent.tokenAddress as `0x${string}`,
                                         abi: erc20Abi,
                                         functionName: 'approve',
                                         args: [ROUTER_ADDRESS, parseEther(amount)]
