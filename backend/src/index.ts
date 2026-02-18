@@ -6,9 +6,9 @@ import { createPublicClient, http, parseAbiItem } from 'viem'
 import { bscTestnet } from 'viem/chains'
 import { AgentManager } from './AgentManager'
 
-const LAUNCHPAD_ADDRESS = '0xD165568566c2dF451EbDBfd6C5DaA0CE88809e9B'
+const LAUNCHPAD_ADDRESS = '0xB483e2320cEd721588a712289F9bab8aA79e0f55'
 const AGENT_SKILL_REGISTRY_ADDRESS = '0x7831569341a8aa0288917D5F93Aa5DF97aa532bE'
-const RPC_URL = 'https://data-seed-prebsc-1-s1.binance.org:8545'
+const RPC_URL = 'https://bsc-testnet.publicnode.com' // More reliable public node
 
 // --- Viem Client ---
 const publicClient = createPublicClient({
