@@ -109,6 +109,8 @@ export default function CreateAgent() {
     const [launchMode, setLaunchMode] = useState<'instant' | 'incubator' | null>(null)
     const [currentStep, setCurrentStep] = useState<'mode' | 'manifesto' | 'pledge' | 'launching'>('mode')
     const [pendingProposalId, setPendingProposalId] = useState<bigint | null>(null)
+    const [savedMetadata, setSavedMetadata] = useState<any>(null) // For optimistic sync
+
 
     // Image
     const [image, setImage] = useState<File | null>(null)
@@ -116,7 +118,7 @@ export default function CreateAgent() {
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Wagmi
-    const { isConnected } = useAccount()
+    const { isConnected, address } = useAccount()
     const chainId = useChainId()
     const { switchChain } = useSwitchChain()
     const { data: hash, writeContract, isPending, error: writeError } = useWriteContract()
@@ -147,40 +149,57 @@ export default function CreateAgent() {
     // Handle Transaction Success
     useEffect(() => {
         if (isSuccess && currentStep === 'launching') {
+            const registerOptimistic = async (id: bigint) => {
+                try {
+                    console.log("🚀 Optimistic Registering Agent:", id.toString());
+                    const agentData = {
+                        id: id.toString(),
+                        name,
+                        ticker,
+                        creator: address,
+                        metadataURI: savedMetadata ? JSON.stringify(savedMetadata) : "{}",
+                        targetAmount: parseEther(target).toString(),
+                        pledgedAmount: parseEther(initialBuy).toString(),
+                        bondingProgress: 0,
+                        launched: launchMode === 'instant', // Instant = Live immediately
+                        skills: AGENT_PRESETS.find(p => p.id === agentType)?.skills || [1],
+                    };
+
+                    await fetch('/api/agents/manual-register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(agentData)
+                    });
+                    console.log("✅ Optimistic Registration Complete");
+                } catch (e) {
+                    console.error("Optimistic Register Failed:", e);
+                }
+            };
+
             if (!pendingProposalId && proposalCount) {
                 // Step 1 Success: Proposal Created
                 const id = proposalCount - BigInt(1)
                 setPendingProposalId(id)
                 console.log("Proposal Created with ID:", id)
 
+                // Register immediately
+                registerOptimistic(id);
+
                 if (parseFloat(initialBuy) > 0) {
                     // Proceed to Pledge
                     setTimeout(() => handlePledge(id), 1000)
                 } else {
-                    // Done! Redirect to Agent Page
-                    // Force Backend Sync first
-                    fetch('/api/sync-registry', { method: 'POST' })
-                        .then(() => {
-                            setTimeout(() => router.push(`/agent/${ticker}`), 1000)
-                        })
-                        .catch(e => {
-                            console.error("Sync failed", e)
-                            setTimeout(() => router.push(`/agent/${ticker}`), 2000)
-                        })
+                    // Done! Redirect
+                    setTimeout(() => router.push(`/agent/${ticker}`), 1000)
                 }
             } else if (pendingProposalId) {
                 // Step 2 Success: Pledge Complete
-                fetch('/api/sync-registry', { method: 'POST' })
-                    .then(() => {
-                        setTimeout(() => router.push(`/agent/${ticker}`), 1000)
-                    })
-                    .catch(e => {
-                        console.error("Sync failed", e)
-                        setTimeout(() => router.push(`/agent/${ticker}`), 2000)
-                    })
+                // Re-register to update pledged amount? Ideally backend handles pledge event too.
+                // But let's just redirect.
+                setTimeout(() => router.push(`/agent/${ticker}`), 1000)
             }
         }
-    }, [isSuccess, currentStep, proposalCount, pendingProposalId, initialBuy, ticker, router])
+    }, [isSuccess, currentStep, proposalCount, pendingProposalId, initialBuy, ticker, router, savedMetadata, address, name, target, launchMode, agentType])
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -203,13 +222,13 @@ export default function CreateAgent() {
         try {
             // 1. Upload Image to Greenfield (if exists)
             let imageUrl = 'default.png';
-            if (image && isConnected && hash) {
-                // Note: We need the user's address to create the object. 
-                // using '0x...' for now as we don't have the address in scope easily without reading wagon config again or passing it.
-                // Actually `useAccount` gives `address`.
-                // We'll skip the actual upload call for this specific MVP step to avoid signature popups breaking the flow,
-                // and just use the mock URL return from service.
-                imageUrl = await uploadToGreenfield(image, '0x0000000000000000000000000000000000000000');
+            if (image && isConnected && hash) { // Hash check? No, checking isConnected.
+                // ... logic ...
+                // Note: we just proceed.
+                // Re-using logic check:
+                if (image) {
+                    imageUrl = await uploadToGreenfield(image, address || '0x0000000000000000000000000000000000000000');
+                }
             }
 
             // 2. Prepare Metadata
@@ -227,6 +246,7 @@ export default function CreateAgent() {
                     community: 100 - marketingPercent - teamPercent
                 }
             };
+            setSavedMetadata(metadata); // SAVE FOR OPTIMISTIC SYNC
 
             // 3. Upload Metadata to Greenfield
             console.log("3. Uploading Metadata...");

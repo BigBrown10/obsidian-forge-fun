@@ -177,6 +177,23 @@ const app = new Elysia({ adapter: node() })
         const agents = await fetchAgents();
         return { success: true, count: agents.length };
     })
+    .post('/api/agents/manual-register', async ({ body }: { body: any }) => {
+        console.log(`[API] Manual Register request for ${body.ticker} (ID: ${body.id})`);
+
+        // Ensure defaults if missing
+        const agent = {
+            ...body,
+            createdAt: body.createdAt || new Date().toISOString(),
+            bondingProgress: body.bondingProgress || 0,
+            skills: body.skills || [1],
+            launched: body.launched ?? false,
+            targetAmount: body.targetAmount?.toString() || "0",
+            pledgedAmount: body.pledgedAmount?.toString() || "0"
+        };
+
+        agentManager.registerAgent(agent);
+        return { success: true };
+    })
     // Phase 17: Training & Skills
     .post('/api/agents/:id/prompt', async ({ params: { id }, body }: { params: { id: string }, body: any }) => {
         console.log(`[API] Updating prompt for ${id}`);
