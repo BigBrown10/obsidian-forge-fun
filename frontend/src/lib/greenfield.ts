@@ -24,6 +24,7 @@ export const uploadToGreenfield = async (file: File, address: string): Promise<s
                 expectChecksums: [] as any[],
             });
             console.log("✅ Real Greenfield Upload Success:", createTx);
+            return `https://greenfield-testnet.bnbchain.org/view/forge-fun-agents/${address}/${Date.now()}_${file.name}`;
         } catch (innerErr) {
             console.warn("⚠️ Real Greenfield Upload Failed (Likely Auth/Signer missing). Falling back to Mock.", innerErr);
         }

@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactNode } from 'react'
-import { WagmiProvider, createConfig, http } from 'wagmi'
+import { WagmiProvider, createConfig, http, fallback } from 'wagmi'
 import { bscTestnet } from 'wagmi/chains'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit'
@@ -14,7 +14,12 @@ const config = getDefaultConfig({
     projectId,
     chains: [bscTestnet],
     transports: {
-        [bscTestnet.id]: http('https://data-seed-prebsc-1-s1.binance.org:8545'), // Official Binance Node
+        [bscTestnet.id]: fallback([
+            http('https://data-seed-prebsc-1-s1.binance.org:8545'),
+            http('https://data-seed-prebsc-2-s1.binance.org:8545'),
+            http('https://bsc-testnet.publicnode.com'),
+            http('https://solitary-cosmopolitan-spring.bsc-testnet.quiknode.pro/74a812ca2250e088bbae24b32d10ed922a6c02a8/'),
+        ]),
     },
 })
 
