@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi'
 import { parseEther, formatEther, erc20Abi } from 'viem'
@@ -10,7 +11,7 @@ import { getAgentByTicker, type Agent } from '../../../lib/api'
 import { formatMarketCap } from '../../../data/mock'
 import ManageAgent from './manage'
 import AgentActivityLog from '../../../components/AgentActivityLog'
-import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap, Users, Rocket, Lock, Shield, BarChart3, MessageSquare } from 'lucide-react'
+import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap, Users, Rocket, Lock, Shield, BarChart3, MessageSquare, Globe, MessageCircle, CheckCircle2 } from 'lucide-react'
 import { formatCompactNumber } from '../../../lib/formatting'
 import AgentBootSequence from '../../../components/AgentBootSequence'
 
@@ -392,12 +393,13 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
 // 2. ICO / LAUNCHPAD VIEW (Incubation)
 // ----------------------------------------------------------------------
 function ICOLaunchView({ agent }: { agent: Agent }) {
-    const [amount, setAmount] = useState('')
+    const [amount, setAmount] = useState('1')
     const { isConnected } = useAccount()
     const { switchChain } = useSwitchChain()
     const { data: hash, writeContract, isPending } = useWriteContract()
     const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash })
     const chainId = useChainId()
+    const router = useRouter() // Add router for back button
 
     const handlePledge = () => {
         if (!isConnected) return alert('Connect Wallet')
@@ -409,112 +411,150 @@ function ICOLaunchView({ agent }: { agent: Agent }) {
             abi: LAUNCHPAD_ABI,
             functionName: 'pledge',
             args: [BigInt(agent.id)],
-            value: parseEther(amount)
+            value: parseEther((Number(amount) * 0.01).toString()) // Mock price: 0.01 BNB per "item"
         })
     }
 
     const metadata = agent.metadataURI ? JSON.parse(agent.metadataURI) : {}
     const progress = Math.min(agent.bondingProgress, 100)
+    const raised = agent.pledgedAmount ? parseFloat(formatCompactNumber(Number(agent.pledgedAmount))) : 0
+    const target = agent.targetAmount ? parseFloat(formatCompactNumber(Number(agent.targetAmount))) : 10
+    const image = metadata.image || `https://api.dicebear.com/9.x/shapes/svg?seed=${agent.ticker}`
 
     return (
-        <div className="min-h-screen py-12 px-4 flex justify-center items-start">
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-purple-900/10 pointer-events-none" />
+        <div className="min-h-screen py-12 px-4 flex justify-center items-center relative overflow-hidden">
+            {/* Background Ambience */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 to-black pointer-events-none" />
+            <div className="absolute top-0 right-0 p-64 bg-accent/5 blur-[120px] rounded-full pointer-events-none" />
 
-            <div className="w-full max-w-5xl z-10 grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div className="w-full max-w-6xl z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
-                {/* LEFT: Project Info */}
-                <div className="space-y-8">
-                    <Link href="/launchpad" className="text-text-dim hover:text-white flex items-center gap-2 text-sm transition-colors mb-8">
-                        <ChevronLeft className="w-4 h-4" /> Back to Launchpad
-                    </Link>
-
-                    <div className="w-48 h-48 rounded-3xl overflow-hidden border border-white/20 shadow-2xl shrink-0 bg-black/20">
-                        <img src={metadata.image || `https://api.dicebear.com/9.x/shapes/svg?seed=${agent.ticker}`} className="w-full h-full object-cover" />
-                    </div>
-
-                    <div>
-                        <h1 className="text-5xl font-bold text-white mb-2 tracking-tight">{agent.name}</h1>
-                        <div className="flex items-center gap-4 text-lg text-text-secondary">
-                            <span className="font-mono text-accent">${agent.ticker}</span>
-                            <span className="flex items-center gap-1 text-xs bg-white/5 rounded-full px-3 py-1 text-text-dim border border-white/5">
-                                <Rocket className="w-3 h-3" /> Incubating
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="prose prose-invert prose-sm text-text-secondary/80 leading-relaxed font-light">
-                        <h3 className="text-white font-bold uppercase tracking-widest text-xs mb-4">Manifesto</h3>
-                        <p>{metadata.description || "No manifesto provided."}</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                            <div className="text-xs text-text-dim uppercase mb-1">Target Raise</div>
-                            <div className="text-xl font-mono text-white">{formatCompactNumber(Number(agent.targetAmount))} BNB</div>
-                        </div>
-                        <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                            <div className="text-xs text-text-dim uppercase mb-1">Min Pledge</div>
-                            <div className="text-xl font-mono text-white">0.01 BNB</div>
+                {/* LEFT: Hero Image (Sakura Style) */}
+                <div className="relative aspect-square w-full rounded-3xl overflow-hidden border border-white/5 shadow-2xl bg-[#0A0A0B] group">
+                    <img src={image} className="w-full h-full object-cover" />
+                    <div className="absolute top-4 left-4">
+                        <div className="bg-black/60 backdrop-blur px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold text-text-dim uppercase tracking-widest">
+                            #{agent.id}
                         </div>
                     </div>
                 </div>
 
-                {/* RIGHT: Participation Card */}
-                <div className="bg-surface border border-white/10 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-32 bg-accent/10 blur-[80px] rounded-full pointer-events-none" />
-
-                    <h2 className="text-2xl font-bold text-white mb-6">Participate in Presale</h2>
-
-                    <div className="mb-8">
-                        <div className="flex justify-between text-sm mb-2">
-                            <span className="text-text-dim">Funding Progress</span>
-                            <span className="text-white font-mono">{progress.toFixed(2)}%</span>
-                        </div>
-                        <div className="h-4 w-full bg-[#0A0A0B] rounded-full overflow-hidden border border-white/5">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${progress}%` }}
-                                className="h-full bg-gradient-to-r from-accent to-purple-400"
-                            />
-                        </div>
-                        <div className="flex justify-between text-[10px] text-text-dim mt-2">
-                            <span>0 BNB</span>
-                            <span>{formatCompactNumber(Number(agent.targetAmount))} BNB</span>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4 mb-8">
-                        <div className="relative">
-                            <input
-                                type="number"
-                                value={amount}
-                                onChange={e => setAmount(e.target.value)}
-                                placeholder="0.0"
-                                className="w-full bg-[#0A0A0B] border border-white/10 focus:border-accent rounded-xl py-4 px-4 text-2xl text-white font-mono outline-none transition-colors"
-                            />
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-text-dim font-bold">BNB</div>
+                {/* RIGHT: Minting Interface */}
+                <div className="space-y-8">
+                    {/* Header */}
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <div className="flex items-center gap-3 mb-2">
+                                <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">SEI</span>
+                                <h1 className="text-4xl font-bold text-white tracking-tight leading-none">{agent.name}</h1>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-text-dim">
+                                <Link href="/incubator" className="hover:text-white transition-colors">Incubator</Link>
+                                <span>•</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                                    <span className="text-success font-bold">Live</span>
+                                </div>
+                            </div>
                         </div>
                         <div className="flex gap-2">
-                            {['0.1', '0.5', '1.0', '5.0'].map(val => (
-                                <button key={val} onClick={() => setAmount(val)} className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-mono text-text-dim transition-colors">
-                                    {val}
-                                </button>
-                            ))}
+                            <button className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-text-dim transition-colors">
+                                <Globe className="w-5 h-5" />
+                            </button>
+                            <button className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-text-dim transition-colors">
+                                <MessageCircle className="w-5 h-5" />
+                            </button>
                         </div>
                     </div>
 
-                    <button
-                        onClick={handlePledge}
-                        disabled={!isConnected || isPending || isConfirming}
-                        className="w-full py-5 rounded-2xl bg-white text-black font-bold text-lg hover:bg-gray-200 transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] disabled:opacity-50"
-                    >
-                        {isPending ? 'Confirming...' : 'Pledge BNB'}
-                    </button>
+                    {/* Mint Panel */}
+                    <div className="bg-[#111113] border border-white/5 rounded-2xl p-6 shadow-xl">
+                        {/* Status Bar */}
+                        <div className="flex justify-between items-center mb-6">
+                            <div className="flex gap-4">
+                                <button className="flex items-center gap-2 text-sm font-bold text-text-dim opacity-50 cursor-not-allowed">
+                                    <Lock className="w-4 h-4" /> Eligible
+                                </button>
+                                <button className="flex items-center gap-2 text-sm font-bold text-white relative">
+                                    <span className="w-2 h-2 rounded-full bg-success" /> Public
+                                    <div className="absolute -bottom-7 left-0 right-0 h-0.5 bg-accent shadow-[0_0_10px_var(--accent)]" />
+                                </button>
+                            </div>
+                            <div className="text-xs text-text-dim font-mono">
+                                Total Minted: <span className="text-white font-bold">{progress.toFixed(1)}%</span>
+                            </div>
+                        </div>
 
-                    <div className="mt-6 flex items-center justify-center gap-2 text-[10px] text-text-dim">
-                        <Shield className="w-3 h-3" />
-                        <span>Secure TEE Enclave Verification</span>
+                        {/* Progress Bar */}
+                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden mb-8">
+                            <div className="h-full bg-gradient-to-r from-accent to-pink-500" style={{ width: `${progress}%` }} />
+                        </div>
+
+                        {/* Price & Quantity */}
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center">
+                                <div className="text-sm text-text-dim uppercase tracking-widest">Price</div>
+                                <div className="text-2xl font-bold text-white font-mono">0.01 BNB <span className="text-xs text-text-dim font-normal">($6.50)</span></div>
+                            </div>
+
+                            <div className="flex justify-end items-center gap-4">
+                                <button
+                                    onClick={() => setAmount(Math.max(1, Number(amount) - 1).toString())}
+                                    className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white transition-colors"
+                                >-</button>
+                                <div className="w-16 text-center font-mono text-xl text-white">{amount}</div>
+                                <button
+                                    onClick={() => setAmount((Number(amount) + 1).toString())}
+                                    className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white transition-colors"
+                                >+</button>
+                            </div>
+
+                            <div className="flex justify-between items-center pt-4 border-t border-white/5 text-xs text-text-dim">
+                                <span>Mint Fee</span>
+                                <span>0.0025 BNB</span>
+                            </div>
+
+                            {/* Terms Checkbox (Mock) */}
+                            <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
+                                <div className="w-5 h-5 rounded border border-accent bg-accent flex items-center justify-center">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                                </div>
+                                <span className="text-xs text-text-dim">By clicking "mint", you agree to the Terms of Service.</span>
+                            </div>
+
+                            {/* Action Button */}
+                            <button
+                                onClick={handlePledge}
+                                disabled={!isConnected || isPending || isConfirming}
+                                className="w-full py-4 rounded-xl bg-[#F0185C] hover:bg-[#D0104C] text-white font-bold text-lg transition-all shadow-lg shadow-red-900/20 disabled:opacity-50"
+                            >
+                                {isPending ? 'Confirming...' : 'Connect Wallet to mint'}
+                            </button>
+                        </div>
                     </div>
+
+                    {/* Stages Info */}
+                    <div className="space-y-4">
+                        <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] flex justify-between items-center opacity-50">
+                            <div className="flex items-center gap-3">
+                                <Lock className="w-4 h-4 text-text-dim" />
+                                <span className="text-white font-bold text-sm">Stage 1 (Whitelist)</span>
+                            </div>
+                            <span className="text-xs text-text-dim uppercase tracking-widest">Ended</span>
+                        </div>
+                        <div className="p-4 rounded-xl border border-accent/20 bg-accent/[0.05] flex justify-between items-center relative overflow-hidden">
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-accent" />
+                            <div className="flex items-center gap-3">
+                                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                                <span className="text-white font-bold text-sm">Stage 2 (Public)</span>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-xs text-text-dim uppercase tracking-widest">Live</div>
+                                <div className="text-[10px] text-accent">Ends in 24h</div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
