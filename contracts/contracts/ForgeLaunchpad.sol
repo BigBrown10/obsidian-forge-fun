@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "./ForgeToken.sol";
+import "./interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
@@ -23,6 +24,8 @@ contract ForgeLaunchpad is Ownable, ReentrancyGuard {
     uint256 public proposalCount;
     
     address public teeAddress; // Trusted Execution Environment address
+    IUniswapV2Router02 public uniswapRouter;
+    
     uint256 public constant DURATION = 48 hours;
     uint256 public constant PLATFORM_FEE_PERCENT = 5; // 5%
 
@@ -31,8 +34,10 @@ contract ForgeLaunchpad is Ownable, ReentrancyGuard {
     event Refunded(uint256 indexed id, address indexed user, uint256 amount);
     event Launched(uint256 indexed id, address tokenAddress, uint256 raisedAmount);
 
-    constructor(address _teeAddress) Ownable(msg.sender) {
+    // PancakeSwap V2 Router on BSC Testnet: 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3
+    constructor(address _teeAddress, address _routerAddress) Ownable(msg.sender) {
         teeAddress = _teeAddress;
+        uniswapRouter = IUniswapV2Router02(_routerAddress);
     }
 
     function setTEEAddress(address _teeAddress) external onlyOwner {
@@ -76,24 +81,39 @@ contract ForgeLaunchpad is Ownable, ReentrancyGuard {
         AgentProposal storage proposal = proposals[_proposalId];
         proposal.launched = true;
 
-        // In a real scenario, we would trigger TEE here or emit event for TEE to pick up
-        // For this version, we'll just emit the event
-        // The TEE would then call a function to deploy the token or we deploy it here
-        
-        // Example: deploy token
+        // 1. Deploy Token
         ForgeToken newToken = new ForgeToken(proposal.name, proposal.ticker, address(this));
         proposal.tokenAddress = address(newToken);
 
-        // Calculate fees
+        // 2. Mint Initial Supply (e.g. 1 Billion)
+        uint256 totalSupply = 1_000_000_000 * 10**18;
+        newToken.mint(address(this), totalSupply);
+
+        // 3. Calculate Allocations
         uint256 platformFee = (proposal.pledgedAmount * PLATFORM_FEE_PERCENT) / 100;
-        uint256 gasTank = (proposal.pledgedAmount * 15) / 100;
-        uint256 liquidity = proposal.pledgedAmount - platformFee - gasTank;
+        uint256 liquidityBNB = proposal.pledgedAmount - platformFee;
+        
+        // 4. Add Liquidity
+        newToken.approve(address(uniswapRouter), totalSupply);
+        
+        try uniswapRouter.addLiquidityETH{value: liquidityBNB}(
+            address(newToken),
+            totalSupply,
+            0, // slippage is unavoidable in initial launch
+            0, // slippage is unavoidable
+            address(0xdead), // Burn LP tokens for fairness
+            block.timestamp + 300
+        ) {
+            emit Launched(_proposalId, address(newToken), proposal.pledgedAmount);
+        } catch {
+            // Fallback if LP addition fails (shouldn't happen if properly tested)
+            // Transfer tokens to creator so they can manually add LP
+            newToken.transfer(proposal.creator, totalSupply);
+            payable(proposal.creator).transfer(liquidityBNB);
+        }
 
-        // Transfer fees (Mock)
-        // payable(owner()).transfer(platformFee);
-        // payable(teeAddress).transfer(gasTank);
-
-        emit Launched(_proposalId, address(newToken), proposal.pledgedAmount);
+        // 5. Transfer Platform Fee
+        payable(owner()).transfer(platformFee);
     }
 
     function refund(uint256 _proposalId) external nonReentrant {

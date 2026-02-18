@@ -1,5 +1,5 @@
 // Contract addresses — update after deployment
-export const LAUNCHPAD_ADDRESS = '0xD165568566c2dF451EbDBfd6C5DaA0CE88809e9B' as const // Deployed to BSC Testnet
+export const LAUNCHPAD_ADDRESS = '0xB483e2320cEd721588a712289F9bab8aA79e0f55' as const // Deployed to BSC Testnet
 
 // ForgeLaunchpad ABI (key functions only)
 export const LAUNCHPAD_ABI = [

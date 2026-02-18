@@ -9,8 +9,10 @@ async function main() {
     const teeAddress = deployer.address;
 
     // Deploy ForgeLaunchpad
+    // PancakeSwap V2 Router (BSC Testnet): 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3
+    const ROUTER_ADDRESS = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
     const ForgeLaunchpad = await ethers.getContractFactory("ForgeLaunchpad");
-    const launchpad = await ForgeLaunchpad.deploy(teeAddress);
+    const launchpad = await ForgeLaunchpad.deploy(teeAddress, ROUTER_ADDRESS);
     await launchpad.waitForDeployment();
 
     const launchpadAddress = await launchpad.getAddress();
