@@ -15,11 +15,18 @@ const config = getDefaultConfig({
     chains: [bscTestnet],
     transports: {
         [bscTestnet.id]: fallback([
-            http('https://bsc-testnet.public.blastapi.io'),
+            // Official Binance Nodes (High reliability)
             http('https://data-seed-prebsc-1-s1.binance.org:8545'),
             http('https://data-seed-prebsc-2-s1.binance.org:8545'),
+            http('https://bsc-testnet.bnbchain.org'),
+
+            // Reliable Public Nodes
             http('https://bsc-testnet.publicnode.com'),
-            http('https://solitary-cosmopolitan-spring.bsc-testnet.quiknode.pro/74a812ca2250e088bbae24b32d10ed922a6c02a8/'),
+            http('https://bsc-testnet-rpc.publicnode.com'),
+            http('https://api.zan.top/bsc-testnet'),
+
+            // Fallbacks
+            http('https://bsc-testnet.public.blastapi.io'),
         ]),
     },
 })
