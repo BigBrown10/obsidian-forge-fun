@@ -1,4 +1,4 @@
-import { Client, RedundancyType } from '@bnb-chain/greenfield-js-sdk';
+import { Client, RedundancyType, VisibilityType } from '@bnb-chain/greenfield-js-sdk';
 
 // Testnet Configuration
 const GREENFIELD_RPC = 'https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org';
@@ -15,7 +15,7 @@ export const uploadToGreenfield = async (file: File, address: string): Promise<s
             bucketName: 'forge-fun-agents', // We'll assume this bucket exists or use a user bucket
             objectName: `${address}/${Date.now()}_${file.name}`,
             creator: address,
-            visibility: 'VISIBILITY_TYPE_PUBLIC_READ',
+            visibility: 'VISIBILITY_TYPE_PUBLIC_READ' as any,
             contentType: file.type,
             redundancyType: RedundancyType.REDUNDANCY_EC_TYPE,
             contentLength: file.size,
