@@ -14,7 +14,7 @@ const config = getDefaultConfig({
     projectId,
     chains: [bscTestnet],
     transports: {
-        [bscTestnet.id]: http('https://solitary-cosmopolitan-spring.bsc-testnet.quiknode.pro/74a812ca2250e088bbae24b32d10ed922a6c02a8/'), // Restored User RPC
+        [bscTestnet.id]: http('https://data-seed-prebsc-1-s1.binance.org:8545'), // Official Binance Node
     },
 })
 

@@ -10,21 +10,23 @@ export const uploadToGreenfield = async (file: File, address: string): Promise<s
     try {
         console.log("Uploading to Greenfield...", file.name);
 
-        // 1. Create Object (Mocked for MVP to avoid signature/RPC issues)
-        console.log("Mocking Greenfield upload for:", file.name);
-
-        /*
-        const createTx = await client.object.createObject({
-            bucketName: 'forge-fun-agents', 
-            objectName: `${address}/${Date.now()}_${file.name}`,
-            creator: address,
-            visibility: 'VISIBILITY_TYPE_PUBLIC_READ' as any,
-            contentType: file.type,
-            redundancyType: RedundancyType.REDUNDANCY_EC_TYPE,
-            payloadSize: file.size as any,
-            expectChecksums: [] as any[],
-        });
-        */
+        // 1. Create Object (Real Attempt)
+        // We attempt the real upload. If it fails (e.g. auth issues), we catch it and use the mock.
+        try {
+            const createTx = await client.object.createObject({
+                bucketName: 'forge-fun-agents',
+                objectName: `${address}/${Date.now()}_${file.name}`,
+                creator: address,
+                visibility: 'VISIBILITY_TYPE_PUBLIC_READ' as any,
+                contentType: file.type,
+                redundancyType: RedundancyType.REDUNDANCY_EC_TYPE,
+                payloadSize: file.size as any,
+                expectChecksums: [] as any[],
+            });
+            console.log("✅ Real Greenfield Upload Success:", createTx);
+        } catch (innerErr) {
+            console.warn("⚠️ Real Greenfield Upload Failed (Likely Auth/Signer missing). Falling back to Mock.", innerErr);
+        }
 
         // Note: Real implementation needs wallet signature here.
         // For this MVP, we might simulate or return a mock URL if signature is complex without a wallet adapter
