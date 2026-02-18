@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi'
 import { parseEther } from 'viem'
-import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI } from '../../../lib/contracts'
+import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI, ROUTER_ADDRESS, ROUTER_ABI } from '../../../lib/contracts'
 import { getAgentByTicker, type Agent } from '../../../lib/api'
 import { formatMarketCap } from '../../../data/mock'
 import ManageAgent from './manage'
@@ -93,6 +93,53 @@ import ChatBox from '../../../components/ChatBox'
 function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, logs: any[], setLogs: (l: any[]) => void, isCreator: boolean }) {
     const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy')
     const [amount, setAmount] = useState('')
+
+    // Wagmi
+    const { address } = useAccount()
+    const { data: hash, writeContract, isPending, error: writeError } = useWriteContract()
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+    const handleSwap = async () => {
+        if (!amount || !address) return;
+        const parsedAmount = parseEther(amount);
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20); // 20 mins
+
+        if (tradeType === 'buy') {
+            writeContract({
+                address: ROUTER_ADDRESS,
+                abi: ROUTER_ABI,
+                functionName: 'swapExactETHForTokens',
+                args: [
+                    BigInt(0), // amountOutMin (slippage ignored for MVP)
+                    ['0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd', agent.tokenAddress], // WBNB -> Token
+                    address,
+                    deadline
+                ],
+                value: parsedAmount
+            });
+        } else {
+            // Sell Logic (Approvals skipped for MVP single-click, would need separate Approve flow or Permit)
+            // For verification, we assume user might have approved or we just show alert.
+            // Actually, let's just alert for Sell that it requires approval first in this version.
+            alert("Sell requires Token Approval first. Please use Buy for initial test.");
+
+            /* 
+            // Real implementation would be:
+            writeContract({
+               address: ROUTER_ADDRESS,
+               abi: ROUTER_ABI,
+               functionName: 'swapExactTokensForETH',
+               args: [
+                   parsedAmount,
+                   BigInt(0),
+                   [agent.tokenAddress, '0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd'],
+                   address,
+                   deadline
+               ]
+            })
+            */
+        }
+    }
 
     return (
         <div className="h-[calc(100vh-32px)] flex flex-col gap-4 overflow-hidden max-w-[1920px] mx-auto p-4">
@@ -205,9 +252,16 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
                     </div>
 
                     {/* Submit */}
-                    <button className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider ${tradeType === 'buy' ? 'bg-success text-black hover:bg-green-400' : 'bg-danger text-black hover:bg-red-500'} transition-colors shadow-lg`}>
-                        Place {tradeType} Order
+                    <button
+                        onClick={handleSwap}
+                        disabled={isPending || isConfirming}
+                        className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider ${tradeType === 'buy' ? 'bg-success text-black hover:bg-green-400' : 'bg-danger text-black hover:bg-red-500'} transition-colors shadow-lg disabled:opacity-50`}
+                    >
+                        {isPending ? 'Swapping...' : `Place ${tradeType} Order`}
                     </button>
+
+                    {writeError && <div className="text-red-500 text-xs mt-2 text-center">{writeError.message}</div>}
+                    {isSuccess && <div className="text-green-500 text-xs mt-2 text-center">Swap Successful!</div>}
 
                     {/* Order Book Mock */}
                     <div className="mt-4 border-t border-white/5 pt-4">

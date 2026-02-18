@@ -141,3 +141,34 @@ export const SKILL_REGISTRY_ABI = [
         type: 'function',
     },
 ] as const
+
+// PancakeSwap V2 Router (BSC Testnet)
+export const ROUTER_ADDRESS = '0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3' as const
+
+export const ROUTER_ABI = [
+    {
+        inputs: [
+            { name: 'amountOutMin', type: 'uint256' },
+            { name: 'path', type: 'address[]' },
+            { name: 'to', type: 'address' },
+            { name: 'deadline', type: 'uint256' }
+        ],
+        name: 'swapExactETHForTokens',
+        outputs: [{ name: 'amounts', type: 'uint256[]' }],
+        stateMutability: 'payable',
+        type: 'function'
+    },
+    {
+        inputs: [
+            { name: 'amountIn', type: 'uint256' },
+            { name: 'amountOutMin', type: 'uint256' },
+            { name: 'path', type: 'address[]' },
+            { name: 'to', type: 'address' },
+            { name: 'deadline', type: 'uint256' }
+        ],
+        name: 'swapExactTokensForETH',
+        outputs: [{ name: 'amounts', type: 'uint256[]' }],
+        stateMutability: 'nonpayable',
+        type: 'function'
+    }
+] as const

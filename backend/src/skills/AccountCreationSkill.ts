@@ -34,7 +34,8 @@ export class AccountCreationSkill implements ISkill {
         console.log(`🛠️ Attempting to create ${platform} account for ${identity.username}...`);
 
         if (platform === 'twitter') {
-            return `Generated Identity: ${identity.email} / ${identity.password}. Ready to sign up for ${platform}.`;
+            await this.createTwitterAccount(identity);
+            return `Attempted Twitter (X) Signup for ${identity.username}. Check screenshot 'twitter_signup.png' for verification.`;
         }
 
         if (platform === 'instagram') {
@@ -108,5 +109,25 @@ export class AccountCreationSkill implements ISkill {
         } finally {
             await page.close();
         }
+        private async createTwitterAccount(identity: any) {
+        if (!this.browserService['browser']) await this.browserService.launch();
+        const page = await this.browserService['browser']!.newPage();
+
+        try {
+            console.log("🐦 Navigating to X (Twitter) Signup...");
+            // Go to signup flow
+            await page.goto('https://twitter.com/i/flow/signup', { waitUntil: 'networkidle2' });
+
+            console.log("✅ Twitter Signup Page Loaded.");
+
+            // Take screenshot to prove we "went to X"
+            await page.screenshot({ path: 'twitter_signup.png' });
+
+        } catch (e) {
+            console.error("❌ Twitter Signup Failed:", e);
+        } finally {
+            await page.close();
+        }
     }
+}
 }

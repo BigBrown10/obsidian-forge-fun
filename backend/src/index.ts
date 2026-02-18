@@ -179,8 +179,15 @@ const app = new Elysia({ adapter: node() })
     })
     .listen(process.env.PORT || 3001)
 
+// Initial Fetch
 fetchAgents().then(agents => {
     console.log(`[INIT] Hydrated ${agents.length} agents from on-chain.`);
 });
+
+// Poll for new agents every 30 seconds
+setInterval(async () => {
+    console.log('[POLL] Checking for new agents...');
+    await fetchAgents();
+}, 30000);
 
 console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`)
