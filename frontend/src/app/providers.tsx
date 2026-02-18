@@ -14,7 +14,7 @@ const config = getDefaultConfig({
     projectId,
     chains: [bscTestnet],
     transports: {
-        [bscTestnet.id]: http(process.env.NEXT_PUBLIC_BSC_RPC_URL || 'https://bsc-testnet.publicnode.com'),
+        [bscTestnet.id]: http(process.env.NEXT_PUBLIC_BSC_RPC_URL || 'https://solitary-cosmopolitan-spring.bsc-testnet.quiknode.pro/74a812ca2250e088bbae24b32d10ed922a6c02a8/'),
     },
 })
 
