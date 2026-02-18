@@ -18,7 +18,8 @@ export const uploadToGreenfield = async (file: File, address: string): Promise<s
             visibility: 'VISIBILITY_TYPE_PUBLIC_READ' as any,
             contentType: file.type,
             redundancyType: RedundancyType.REDUNDANCY_EC_TYPE,
-            contentLength: file.size,
+            payloadSize: file.size as any,
+            expectChecksums: [] as any[],
         });
 
         // Note: Real implementation needs wallet signature here.
