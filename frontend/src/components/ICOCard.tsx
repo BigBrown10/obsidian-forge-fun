@@ -7,14 +7,15 @@ import { type Agent } from '../lib/api'
 import { formatCompactNumber } from '../lib/formatting'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { useAgentMetadata } from '../hooks/useAgentMetadata'
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
 export default function ICOCard({ agent, onClick }: { agent: Agent, onClick?: () => void }) {
-    const metadata = agent.metadataURI ? JSON.parse(agent.metadataURI) : {}
-    const image = metadata.image || `https://api.dicebear.com/9.x/shapes/svg?seed=${agent.ticker}`
+    const { metadata } = useAgentMetadata(agent.metadataURI)
+    const image = metadata?.image || `https://api.dicebear.com/9.x/shapes/svg?seed=${agent.ticker}`
     const progress = Math.min(agent.bondingProgress, 100)
     const target = Number(agent.targetAmount)
     const raised = Number(agent.pledgedAmount)

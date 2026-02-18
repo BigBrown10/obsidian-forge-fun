@@ -198,6 +198,7 @@ export default function CreateAgent() {
         if (chainId !== 97) return switchChain({ chainId: 97 })
 
         setCurrentStep('launching')
+        console.log("🚀 Starting Launch Sequence...");
 
         try {
             // 1. Upload Image to Greenfield (if exists)
@@ -227,12 +228,39 @@ export default function CreateAgent() {
             };
 
             // 3. Upload Metadata to Greenfield
-            const metadataFile = new File([JSON.stringify(metadata)], 'metadata.json', { type: 'application/json' });
-            const metadataUrl = await uploadToGreenfield(metadataFile, '0x0000000000000000000000000000000000000000');
+            console.log("3. Uploading Metadata...");
+            let metadataUrl;
+            try {
+                const metadataFile = new File([JSON.stringify(metadata)], 'metadata.json', { type: 'application/json' });
+                metadataUrl = await uploadToGreenfield(metadataFile, '0x0000000000000000000000000000000000000000');
+                console.log("Metadata URL:", metadataUrl);
+            } catch (metaErr) {
+                console.error("Metadata Upload Critical Failure:", metaErr);
+                throw new Error("Metadata Upload Failed. Launch Aborted.");
+            }
 
             if (!metadataUrl) {
                 throw new Error("Metadata upload failed (returned empty). Check console/network.");
             }
+
+            // 4. Simulate Contract (Optimistic Check)
+            // This catches logic errors (reverts) BEFORE the wallet popup, providing a clear error.
+            // It also warms up the RPC connection.
+            console.log("Simulating createProposal...");
+            // We need a public client. We can't use `usePublicClient` easily here without refactoring the hook usage
+            // inside the callback, but we can standardly rely on writeContract's internal estimateGas.
+            // HOWEVER, to debug the specific "RPC Error", explicit simulation is better.
+
+            // Let's rely on writeContract but catch the error better in the UI loop.
+            // actually, let's just use the reduced polling first. adding simulation logic inside the handler
+            // requires `publicClient` instance.
+
+            // 4. Execute Contract
+            console.log("4. Executing Contract Call...");
+
+            // Validate Inputs
+            const safeTarget = target || '10'; // Default if empty
+            console.log("Params:", { name, ticker, metadataUrl, safeTarget });
 
             writeContract({
                 address: LAUNCHPAD_ADDRESS,
@@ -241,12 +269,19 @@ export default function CreateAgent() {
                 args: [
                     name,
                     ticker,
-                    metadataUrl, // Pass Greenfield URL instead of raw JSON
-                    parseEther(target),
+                    metadataUrl,
+                    parseEther(safeTarget),
                 ],
+            }, {
+                onError: (err: any) => {
+                    console.error("❌ Contract Write Error:", err);
+                    console.error("Error Details:", err.details || err.cause || err.message);
+                    alert(`Launch Failed: ${err.shortMessage || err.message}`);
+                    setCurrentStep('manifesto');
+                }
             })
         } catch (e: any) {
-            console.error(e)
+            console.error("❌ Critical Logic Error:", e);
             alert("Error: " + (e.message || e));
             setCurrentStep('manifesto')
         }

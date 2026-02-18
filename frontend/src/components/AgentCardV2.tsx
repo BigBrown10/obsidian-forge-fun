@@ -8,6 +8,7 @@ import { formatCompactNumber, formatCurrency } from '../lib/formatting'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useRouter } from 'next/navigation'
+import { useAgentMetadata } from '../hooks/useAgentMetadata'
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
@@ -16,18 +17,12 @@ function cn(...inputs: ClassValue[]) {
 export default function AgentCardV2({ agent, onClick, minimalist = false }: { agent: Agent, onClick?: () => void, minimalist?: boolean }) {
     const router = useRouter()
     const isLaunched = agent.launched
+    const { metadata } = useAgentMetadata(agent.metadataURI)
 
     // V2: Avatars only to prevent "shit" look
     let image = `https://api.dicebear.com/9.x/avataaars/svg?seed=${agent.ticker}`
-    try {
-        if (agent.metadataURI) {
-            const metadata = JSON.parse(agent.metadataURI)
-            if (metadata.image && metadata.image.startsWith('http')) {
-                image = metadata.image
-            }
-        }
-    } catch (e) {
-        // invalid json, ignore
+    if (metadata?.image && metadata.image.startsWith('http')) {
+        image = metadata.image
     }
 
     // Metrics

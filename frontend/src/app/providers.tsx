@@ -15,6 +15,7 @@ const config = getDefaultConfig({
     chains: [bscTestnet],
     transports: {
         [bscTestnet.id]: fallback([
+            http('https://bsc-testnet.public.blastapi.io'),
             http('https://data-seed-prebsc-1-s1.binance.org:8545'),
             http('https://data-seed-prebsc-2-s1.binance.org:8545'),
             http('https://bsc-testnet.publicnode.com'),
