@@ -31,9 +31,8 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
 
     useEffect(() => {
         if (resolvedParams) {
-
             let retries = 0
-            const maxRetries = 15
+            const maxRetries = 30 // Increased to ~60s
             const fetchAgent = () => {
                 getAgentByTicker(resolvedParams.ticker)
                     .then(data => {
@@ -56,6 +55,21 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
         }
     }, [resolvedParams])
 
+    const handleForceSync = async () => {
+        setLoading(true)
+        try {
+            await fetch('/api/sync-registry', { method: 'POST' })
+            // Wait 2s for backend to process
+            await new Promise(r => setTimeout(r, 2000))
+            const data = await getAgentByTicker(resolvedParams?.ticker || '')
+            if (data) setAgent(data)
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     if (loading) return (
         <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
             <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin" />
@@ -67,9 +81,14 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
         <div className="min-h-screen flex flex-col items-center justify-center text-text-dim space-y-4">
             <div className="text-xl font-bold text-white">Signal Lost</div>
             <p className="text-sm max-w-md text-center">The requested agent uplink could not be established.</p>
-            <button onClick={() => window.location.reload()} className="px-6 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors border border-white/5 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-accent" /> Retry Connection
-            </button>
+            <div className="flex gap-4">
+                <button onClick={() => window.location.reload()} className="px-6 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors border border-white/5 flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-accent" /> Retry Connection
+                </button>
+                <button onClick={handleForceSync} className="px-6 py-2 rounded-xl bg-accent/10 hover:bg-accent/20 text-accent transition-colors border border-accent/20 flex items-center gap-2">
+                    <Rocket className="w-4 h-4" /> Force Sync
+                </button>
+            </div>
         </div>
     )
 
