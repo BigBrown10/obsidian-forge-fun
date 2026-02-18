@@ -149,6 +149,9 @@ import ChatBox from '../../../components/ChatBox'
 
 // ... existing code ...
 
+// ----------------------------------------------------------------------
+// 1. LIVE TRADING VIEW (Live View)
+// ----------------------------------------------------------------------
 function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, logs: any[], setLogs: (l: any[]) => void, isCreator: boolean }) {
     const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy')
     const [amount, setAmount] = useState('')
@@ -194,197 +197,198 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
         }
     }
 
+    const metadata = agent.metadataURI ? JSON.parse(agent.metadataURI) : {};
+    const image = metadata.image || `https://api.dicebear.com/9.x/shapes/svg?seed=${agent.ticker}`;
+
     return (
-        <div className="h-[calc(100vh-32px)] flex flex-col gap-4 overflow-hidden max-w-[1920px] mx-auto p-4">
-            {/* Header */}
-            <header className="h-16 shrink-0 flex items-center justify-between px-6 bg-surface/80 border border-white/5 rounded-2xl backdrop-blur-md">
-                <div className="flex items-center gap-4">
-                    <Link href="/" className="p-2 hover:bg-white/5 rounded-lg text-text-dim hover:text-white transition-colors">
-                        <ChevronLeft className="w-5 h-5" />
+        <div className="min-h-screen py-8 px-4 flex justify-center items-start relative overflow-hidden">
+            {/* Background Ambience */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 to-black pointer-events-none" />
+            <div className="absolute top-0 right-0 p-64 bg-accent/5 blur-[120px] rounded-full pointer-events-none" />
+
+            <div className="w-full max-w-7xl z-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+                {/* LEFT: Chart & Logs (8 cols) */}
+                <div className="lg:col-span-8 flex flex-col gap-6">
+                    <Link href="/" className="text-text-dim hover:text-white flex items-center gap-2 text-sm transition-colors w-fit">
+                        <ChevronLeft className="w-4 h-4" /> Back to Dashboard
                     </Link>
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded bg-accent/20 flex items-center justify-center text-accent font-bold">
-                            {agent.ticker[0]}
+
+                    {/* Chart Card */}
+                    <div className="bg-[#0A0A0B] border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative min-h-[500px] flex flex-col">
+                        <div className="absolute top-4 left-4 z-10 flex gap-2">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 backdrop-blur rounded-lg border border-white/5">
+                                <Activity className="w-4 h-4 text-accent" />
+                                <span className="text-xs font-bold text-white">Live Chart</span>
+                            </div>
+                            <div className="bg-accent/10 px-2 py-1.5 rounded text-[10px] text-accent font-mono border border-accent/20">15m</div>
                         </div>
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-2xl font-bold leading-none text-white tracking-tight">{agent.name}</h1>
-                                {agent.identity && (
-                                    <div className="flex items-center gap-4 ml-4 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full">
-                                        <div className="flex items-center gap-2">
-                                            <Users className="w-3.5 h-3.5 text-blue-400" />
-                                            <span className="text-xs text-blue-400 font-bold">@{agent.identity.username}</span>
-                                        </div>
-                                        <div className="w-px h-3 bg-white/10" />
-                                        <div className="flex items-center gap-1.5 text-xs text-text-dim">
-                                            <Shield className="w-3 h-3 text-success" />
-                                            <span>Verified</span>
-                                        </div>
-                                    </div>
-                                )}
+                        <div className="absolute top-4 right-4 z-10 flex gap-4 text-xs font-mono">
+                            <div>
+                                <span className="text-text-dim mr-2">PRICE</span>
+                                <span className="text-white font-bold">$0.00042</span>
                             </div>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs text-accent font-mono tracking-wider bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">${agent.ticker}</span>
-                                {isCreator && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full text-white/50">CREATOR_MODE</span>}
+                            <div>
+                                <span className="text-text-dim mr-2">MKT CAP</span>
+                                <span className="text-white font-bold">$420k</span>
                             </div>
+                        </div>
+                        <div className="flex-1 w-full h-full">
+                            <TradingChart data={[]} />
+                        </div>
+                    </div>
+
+                    {/* Activity Log */}
+                    <div className="bg-[#0A0A0B] border border-white/5 rounded-3xl overflow-hidden shadow-xl h-[300px] flex flex-col">
+                        <div className="p-4 border-b border-white/5 flex items-center gap-2">
+                            <Terminal className="w-4 h-4 text-text-dim" />
+                            <span className="text-sm font-bold text-white">Agent Activity Log</span>
+                        </div>
+                        <div className="flex-1 min-h-0">
+                            <AgentActivityLog agentId={agent.id} ticker={agent.ticker} />
                         </div>
                     </div>
                 </div>
-                <div className="flex gap-8 text-xs font-mono">
+
+                {/* RIGHT: Trade Interface (4 cols) */}
+                <div className="lg:col-span-4 flex flex-col gap-6">
+
+                    {/* Header Info */}
                     <div>
-                        <div className="text-text-dim">PRICE</div>
-                        <div className="text-white font-bold">$0.00042</div>
-                    </div>
-                    <div>
-                        <div className="text-text-dim">MKT CAP</div>
-                        <div className="text-white font-bold">$420k</div>
-                    </div>
-                </div>
-            </header>
-
-            {/* Trading Grid */}
-            <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
-                {/* LEFT: Chart (8 cols) */}
-                <div className="col-span-8 bg-[#0A0A0B] rounded-2xl border border-white/5 overflow-hidden flex flex-col relative">
-                    <div className="absolute top-4 left-4 z-10 flex gap-2">
-                        <div className="bg-white/10 backdrop-blur px-2 py-1 rounded text-[10px] text-white font-mono">15m</div>
-                        <div className="bg-transparent px-2 py-1 rounded text-[10px] text-text-dim font-mono hover:bg-white/5 cursor-pointer">1H</div>
-                        <div className="bg-transparent px-2 py-1 rounded text-[10px] text-text-dim font-mono hover:bg-white/5 cursor-pointer">4H</div>
-                    </div>
-
-
-
-                    {/* Real Chart */}
-                    <div className="h-[55%] relative border-b border-white/5">
-                        <TradingChart data={[]} />
-                    </div>
-
-                    {/* Agent Activity Log (User requested 4x bigger, replacing ChatBox) */}
-                    <div className="flex-1 bg-[#050505] flex flex-col min-h-0">
-                        <AgentActivityLog agentId={agent.id} ticker={agent.ticker} />
-                    </div>
-                </div>
-
-                {/* RIGHT: Order Form (4 cols) */}
-                <div className="col-span-4 bg-surface/50 border border-white/5 rounded-2xl p-4 flex flex-col gap-4">
-
-                    {/* Tabs */}
-                    <div className="grid grid-cols-2 gap-1 p-1 bg-black/40 rounded-lg">
-                        <button onClick={() => setTradeType('buy')} className={`py-2 text-xs font-bold uppercase rounded ${tradeType === 'buy' ? 'bg-success text-black' : 'text-text-dim hover:text-white'}`}>Buy</button>
-                        <button onClick={() => setTradeType('sell')} className={`py-2 text-xs font-bold uppercase rounded ${tradeType === 'sell' ? 'bg-danger text-black' : 'text-text-dim hover:text-white'}`}>Sell</button>
-                    </div>
-
-                    {/* Inputs */}
-                    <div className="space-y-4 flex-1">
-                        <div className="relative">
-                            <div className="text-[10px] text-text-dim uppercase mb-1 flex justify-between">
-                                <span>Amount ({agent.ticker})</span>
-                                <span>Bal: 0.00</span>
+                        <div className="flex items-center gap-3 mb-2">
+                            <h1 className="text-3xl font-bold text-white tracking-tight leading-none">{agent.name}</h1>
+                            <span className="font-mono text-accent text-lg bg-white/5 px-2 py-0.5 rounded border border-white/5">${agent.ticker}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-text-dim mb-4">
+                            <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                                <span className="text-success font-bold">Live Trading</span>
                             </div>
-                            <input
-                                type="number"
-                                value={amount}
-                                onChange={e => setAmount(e.target.value)}
-                                placeholder="0.0"
-                                className="w-full bg-[#050505] border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-white/30 outline-none"
-                            />
+                            {agent.identity && (
+                                <div className="flex items-center gap-1 text-xs">
+                                    <Shield className="w-3 h-3 text-blue-400" />
+                                    <span>Verified Dev</span>
+                                </div>
+                            )}
                         </div>
-
-                        {/* Quick Buy Buttons */}
-                        <div className="grid grid-cols-4 gap-2">
-                            {['0.1', '0.5', '1.0', '5.0'].map(val => (
-                                <button
-                                    key={val}
-                                    onClick={() => setAmount(val)}
-                                    className="py-2.5 rounded-lg bg-white/5 text-xs font-mono text-text-dim hover:bg-white/10 hover:text-white transition-colors border border-white/5"
-                                >
-                                    {val}
-                                </button>
-                            ))}
+                        <div className="flex gap-2">
+                            <a href="#" className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-text-dim transition-colors"><Globe className="w-4 h-4" /></a>
+                            <a href="#" className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-text-dim transition-colors"><MessageCircle className="w-4 h-4" /></a>
                         </div>
                     </div>
 
-                    {/* Submit */}
-                    <div className="flex gap-2">
-                        {tradeType === 'sell' && (
+                    {/* Trade Card */}
+                    <div className="bg-[#111113] border border-white/5 rounded-[32px] p-6 shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-32 bg-accent/5 blur-[80px] rounded-full pointer-events-none" />
+
+                        {/* Tabs */}
+                        <div className="grid grid-cols-2 gap-1 p-1 bg-black/40 rounded-xl mb-6">
                             <button
-                                onClick={() => {
-                                    if (!amount) return;
-                                    writeContract({
-                                        address: agent.tokenAddress as `0x${string}`,
-                                        abi: erc20Abi,
-                                        functionName: 'approve',
-                                        args: [ROUTER_ADDRESS, parseEther(amount)]
-                                    })
-                                }}
-                                className="w-1/3 py-4 rounded-xl font-bold uppercase tracking-wider bg-white/10 text-white hover:bg-white/20 transition-colors shadow-lg"
+                                onClick={() => setTradeType('buy')}
+                                className={`py-3 text-sm font-bold uppercase rounded-lg transition-all ${tradeType === 'buy' ? 'bg-success text-black shadow-lg shadow-green-500/20' : 'text-text-dim hover:text-white'}`}
                             >
-                                Approve
+                                Buy
                             </button>
-                        )}
-                        <button
-                            onClick={handleSwap}
-                            disabled={isPending || isConfirming}
-                            className={`flex-1 py-4 rounded-xl font-bold uppercase tracking-wider ${tradeType === 'buy' ? 'bg-success text-black hover:bg-green-400' : 'bg-danger text-black hover:bg-red-500'} transition-colors shadow-lg disabled:opacity-50`}
-                        >
-                            {isPending ? 'Tx Pending...' : tradeType === 'buy' ? 'Buy Now' : 'Sell Now'}
-                        </button>
-                    </div>
-
-                    {writeError && <div className="text-red-500 text-xs mt-2 text-center">{writeError.message}</div>}
-                    {isSuccess && <div className="text-green-500 text-xs mt-2 text-center">Swap Successful!</div>}
-
-                    {/* Order Book Mock */}
-                    <div className="mt-4 border-t border-white/5 pt-4">
-                        <div className="text-[10px] text-text-dim uppercase mb-2">Order Book</div>
-                        <div className="space-y-1 font-mono text-[10px]">
-                            {[...Array(5)].map((_, i) => (
-                                <div key={i} className="flex justify-between text-danger/70">
-                                    <span>{(0.00045 + (i * 0.00001)).toFixed(5)}</span>
-                                    <span>{(1000 + i * 500).toFixed(0)}</span>
-                                </div>
-                            ))}
-                            <div className="text-white font-bold my-1 text-center bg-white/5 py-1">0.00042</div>
-                            {[...Array(5)].map((_, i) => (
-                                <div key={i} className="flex justify-between text-success/70">
-                                    <span>{(0.00041 - (i * 0.00001)).toFixed(5)}</span>
-                                    <span>{(2000 + i * 300).toFixed(0)}</span>
-                                </div>
-                            ))}
+                            <button
+                                onClick={() => setTradeType('sell')}
+                                className={`py-3 text-sm font-bold uppercase rounded-lg transition-all ${tradeType === 'sell' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'text-text-dim hover:text-white'}`}
+                            >
+                                Sell
+                            </button>
                         </div>
+
+                        {/* Input */}
+                        <div className="space-y-4 mb-6">
+                            <div className="relative">
+                                <div className="flex justify-between text-[10px] text-text-dim uppercase mb-2 font-bold tracking-wider">
+                                    <span>Amount</span>
+                                    <span>Bal: 0.00 {tradeType === 'buy' ? 'BNB' : agent.ticker}</span>
+                                </div>
+                                <div className="relative group">
+                                    <input
+                                        type="number"
+                                        value={amount}
+                                        onChange={e => setAmount(e.target.value)}
+                                        placeholder="0.0"
+                                        className="w-full bg-[#0A0A0B] border border-white/10 group-hover:border-white/20 focus:border-accent rounded-2xl py-4 px-4 text-2xl text-white font-mono outline-none transition-all placeholder:text-white/10"
+                                    />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-text-dim font-bold text-sm">
+                                        {tradeType === 'buy' ? 'BNB' : agent.ticker}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Quick Buttons */}
+                            <div className="grid grid-cols-4 gap-2">
+                                {['0.1', '0.5', '1.0', '5.0'].map(val => (
+                                    <button
+                                        key={val}
+                                        onClick={() => setAmount(val)}
+                                        className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-mono text-text-dim transition-colors border border-white/5"
+                                    >
+                                        {val}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Action Button */}
+                        <div className="flex gap-2">
+                            {tradeType === 'sell' && (
+                                <button
+                                    onClick={() => {
+                                        if (!amount) return;
+                                        writeContract({
+                                            address: agent.tokenAddress as `0x${string}`,
+                                            abi: erc20Abi,
+                                            functionName: 'approve',
+                                            args: [ROUTER_ADDRESS, parseEther(amount)]
+                                        })
+                                    }}
+                                    className="w-1/3 py-4 rounded-xl font-bold uppercase tracking-wider bg-white/10 text-white hover:bg-white/20 transition-colors shadow-lg text-sm"
+                                >
+                                    Approve
+                                </button>
+                            )}
+                            <button
+                                onClick={handleSwap}
+                                disabled={isPending || isConfirming}
+                                className={`flex-1 py-4 rounded-xl font-bold uppercase tracking-wider text-sm transition-all shadow-lg shadow-inherit disabled:opacity-50 ${tradeType === 'buy' ? 'bg-success hover:bg-green-400 text-black shadow-green-900/20' : 'bg-red-500 hover:bg-red-600 text-white shadow-red-900/20'}`}
+                            >
+                                {isPending ? 'Confirming...' : tradeType === 'buy' ? 'Buy Now' : 'Sell Now'}
+                            </button>
+                        </div>
+
+                        {writeError && <div className="text-red-500 text-xs mt-4 text-center bg-red-500/10 p-2 rounded-lg border border-red-500/20">{writeError.message}</div>}
+                        {isSuccess && <div className="text-green-500 text-xs mt-4 text-center bg-green-500/10 p-2 rounded-lg border border-green-500/20">Transaction Successful!</div>}
                     </div>
 
+                    {/* Classified Intel (Creator) */}
+                    {isCreator && agent.identity && (
+                        <div className="bg-[#0A0A0B] border border-red-500/20 rounded-2xl p-5 relative overflow-hidden group">
+                            <div className="absolute inset-0 bg-red-500/5 pointer-events-none animate-pulse" />
+                            <div className="flex items-center gap-2 text-red-500 font-bold text-xs uppercase tracking-widest mb-4">
+                                <Lock className="w-3 h-3" /> Classified Intel
+                            </div>
+                            <div className="space-y-4 font-mono text-xs relative z-10">
+                                <div className="p-3 bg-black/40 rounded-lg border border-red-500/10">
+                                    <div className="text-red-400/70 uppercase text-[10px] mb-1">Agent Email</div>
+                                    <div className="text-white select-all">{agent.identity.email || 'N/A'}</div>
+                                </div>
+                                <div className="p-3 bg-black/40 rounded-lg border border-red-500/10">
+                                    <div className="text-red-400/70 uppercase text-[10px] mb-1">X Handle</div>
+                                    <div className="text-white select-all">@{agent.identity.username || 'N/A'}</div>
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                    <button className="flex-1 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[10px] transition-colors border border-red-500/20">Hibernate</button>
+                                    <button className="flex-1 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[10px] transition-colors border border-red-500/20">Reset Keys</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
+
             </div>
-
-            {/* CLASSIFIED INTEL (CREATOR ONLY) */}
-            {isCreator && agent.identity && (
-                <div className="bg-[#0A0A0B] border border-red-500/20 rounded-xl p-4 mt-4 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-red-500/5 pointer-events-none animate-pulse" />
-                    <div className="flex items-center gap-2 text-red-400 font-bold text-xs uppercase tracking-widest mb-3">
-                        <Lock className="w-3 h-3" /> Classified Intel (Eyes Only)
-                    </div>
-                    <div className="space-y-3 font-mono text-xs">
-                        <div>
-                            <div className="text-text-dim uppercase text-[10px]">Agent Email</div>
-                            <div className="text-white select-all">{agent.identity.email || 'N/A'}</div>
-                        </div>
-                        <div>
-                            <div className="text-text-dim uppercase text-[10px]">X (Twitter) Handle</div>
-                            <div className="text-white select-all">@{agent.identity.username || 'N/A'}</div>
-                        </div>
-                        <div className="pt-2 border-t border-red-500/20 flex gap-2">
-                            <button className="flex-1 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[10px] transition-colors border border-red-500/20">
-                                Reset Credentials
-                            </button>
-                            <button className="flex-1 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[10px] transition-colors border border-red-500/20">
-                                Emergency Hibernate
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
         </div>
     )
 }
