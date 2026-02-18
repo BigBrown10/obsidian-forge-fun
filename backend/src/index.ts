@@ -34,9 +34,10 @@ const fetchAgents = async () => {
 
         const agents = []
 
-        // 2. Iterate and fetch details (Only latest 2 - User requested limit)
-        const start = Math.max(0, Number(count) - 2);
-        console.log(`[INIT] Loading agents from index ${start} to ${count} (Latest 2)...`);
+        // 2. Iterate and fetch details (Fetch last 50 to ensure we see everything)
+        // In production, we should use an indexer database (e.g. SQlite/Postgres)
+        const start = Math.max(0, Number(count) - 50);
+        console.log(`[INIT] Loading agents from index ${start} to ${count}...`);
 
         for (let i = start; i < Number(count); i++) {
             try {
