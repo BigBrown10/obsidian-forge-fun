@@ -21,6 +21,9 @@ const agentManager = new AgentManager();
 // --- Startup ---
 const fetchAgents = async () => {
     try {
+        console.log(`[INIT] Starting Fetch Loop...`);
+        console.log(`[DEBUG] CONTRACT: ${LAUNCHPAD_ADDRESS}`);
+        console.log(`[DEBUG] RPC: ${RPC_URL}`);
         console.log(`[INIT] Fetching agents via Count & Loop (Bypassing RPC Log Limits)...`);
 
         // 1. Get Total Count
