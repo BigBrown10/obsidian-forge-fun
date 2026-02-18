@@ -10,9 +10,12 @@ export const uploadToGreenfield = async (file: File, address: string): Promise<s
     try {
         console.log("Uploading to Greenfield...", file.name);
 
-        // 1. Create Object
+        // 1. Create Object (Mocked for MVP to avoid signature/RPC issues)
+        console.log("Mocking Greenfield upload for:", file.name);
+
+        /*
         const createTx = await client.object.createObject({
-            bucketName: 'forge-fun-agents', // We'll assume this bucket exists or use a user bucket
+            bucketName: 'forge-fun-agents', 
             objectName: `${address}/${Date.now()}_${file.name}`,
             creator: address,
             visibility: 'VISIBILITY_TYPE_PUBLIC_READ' as any,
@@ -21,6 +24,7 @@ export const uploadToGreenfield = async (file: File, address: string): Promise<s
             payloadSize: file.size as any,
             expectChecksums: [] as any[],
         });
+        */
 
         // Note: Real implementation needs wallet signature here.
         // For this MVP, we might simulate or return a mock URL if signature is complex without a wallet adapter

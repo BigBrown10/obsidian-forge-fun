@@ -230,6 +230,10 @@ export default function CreateAgent() {
             const metadataFile = new File([JSON.stringify(metadata)], 'metadata.json', { type: 'application/json' });
             const metadataUrl = await uploadToGreenfield(metadataFile, '0x0000000000000000000000000000000000000000');
 
+            if (!metadataUrl) {
+                throw new Error("Metadata upload failed (returned empty). Check console/network.");
+            }
+
             writeContract({
                 address: LAUNCHPAD_ADDRESS,
                 abi: LAUNCHPAD_ABI,
