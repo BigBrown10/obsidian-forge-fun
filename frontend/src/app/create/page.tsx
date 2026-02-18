@@ -581,7 +581,7 @@ export default function CreateAgent() {
                                                 'Initializing...'}
                             </h2>
                             <p className="text-text-dim font-mono text-sm max-w-xs">
-                                {writeError ? (writeError.message.includes('User rejected') ? 'Transaction rejected.' : 'An error occurred.') :
+                                {writeError ? (writeError.message.includes('User rejected') ? 'Transaction rejected.' : writeError.message) :
                                     isSuccess ? (pendingProposalId ? 'Finalizing initial pledge transaction...' : 'Initializing TEE Handshake...') :
                                         'Please confirm the transaction in your wallet.'}
                             </p>
