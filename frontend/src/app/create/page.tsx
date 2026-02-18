@@ -190,17 +190,17 @@ export default function CreateAgent() {
                     // 2. Next Steps
                     if (launchMode === 'incubator') {
                         // Incubator Mode: Gas Only. No Pledge.
-                        setTimeout(() => router.push(`/agent/${ticker}`), 500)
+                        setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 500)
                     } else if (parseFloat(initialBuy) > 0) {
                         // Instant Mode with Buy
                         setTimeout(() => handlePledge(id), 500)
                     } else {
                         // Instant Mode without Buy
-                        setTimeout(() => router.push(`/agent/${ticker}`), 500)
+                        setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 500)
                     }
                 } else if (pendingProposalId && !isRegistering) {
                     // Step 2 Success: Pledge Complete (Only for Instant Mode)
-                    setTimeout(() => router.push(`/agent/${ticker}`), 1000)
+                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 1000)
                 }
             }
             handleSuccess();
@@ -243,13 +243,15 @@ export default function CreateAgent() {
 
         try {
             // 1. Upload Image to Greenfield (if exists)
-            let imageUrl = 'default.png';
-            if (image && isConnected && hash) { // Hash check? No, checking isConnected.
-                // ... logic ...
-                // Note: we just proceed.
-                // Re-using logic check:
-                if (image) {
+            let imageUrl = ''; // Default to empty string so we can detect "no image"
+            if (image && isConnected) {
+                try {
+                    console.log("1. Uploading Image to Greenfield...");
                     imageUrl = await uploadToGreenfield(image, address || '0x0000000000000000000000000000000000000000');
+                    console.log("Image Uploaded:", imageUrl);
+                } catch (err) {
+                    console.error("Image Upload Failed:", err);
+                    // continue without image
                 }
             }
 
@@ -312,7 +314,7 @@ export default function CreateAgent() {
                 args: [
                     name,
                     ticker,
-                    metadataUrl,
+                    JSON.stringify(metadata), // Store inline JSON for MVP (avoids fetching URL)
                     parseEther(safeTarget),
                 ],
             }, {
@@ -343,7 +345,7 @@ export default function CreateAgent() {
             console.error(e)
             // If pledge fails, user is stuck but agent exists. Redirect?
             alert("Pledge failed to start. Agent exists though.")
-            router.push(`/agent/${ticker}`)
+            router.push(`/agent/${ticker}?newly_created=true`)
         }
     }
 

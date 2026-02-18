@@ -9,6 +9,7 @@
         "@elysiajs/cors": "latest",
         "@elysiajs/node": "latest",
         "@types/node": "latest",
+        "axios": "^1.13.5",
         "elysia": "latest",
         "playwright": "^1.58.2",
         "puppeteer": "^24.37.2",

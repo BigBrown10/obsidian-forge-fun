@@ -54,7 +54,7 @@ export class AgentManager {
     public twitterService: TwitterService; // Public for API access
     private browserService: BrowserService;
     private identityService: IdentityService;
-    private activeAgents: Map<string, any> = new Map(); // Store active agent "processes"
+    public activeAgents: Map<string, any> = new Map(); // Store active agent "processes"
     private loops: Map<string, NodeJS.Timeout> = new Map();
     private skillRegistry: Map<number, ISkill> = new Map();
 
@@ -127,6 +127,15 @@ export class AgentManager {
     registerAgent(agent: any) {
         if (this.activeAgents.has(agent.id)) return;
         this.activeAgents.set(agent.id, agent);
+
+        // CHECK LAUNCH STATUS:
+        // If agent is NOT launched (Incubator mode), we do NOT boot or start the loop.
+        // We just register it so it exists in memory for querying logs/status (which will be empty/dormant).
+        if (agent.launched === false) {
+            console.log(`🥚 Agent Registered (INCUBATOR): ${agent.name} (${agent.ticker}) - DORMANT`);
+            this.addLog(agent.id, "STATUS", "Agent is in incubation. Systems dormant until launch.");
+            return;
+        }
 
         // Trigger Boot Sequence for "Awakening" feel
         this.bootAgent(agent);

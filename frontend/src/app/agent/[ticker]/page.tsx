@@ -14,8 +14,9 @@ import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap, Users, Rock
 import { formatCompactNumber } from '../../../lib/formatting'
 import AgentBootSequence from '../../../components/AgentBootSequence'
 
-export default function AgentDetail({ params }: { params: Promise<{ ticker: string }> }) {
+export default function AgentDetail({ params, searchParams }: { params: Promise<{ ticker: string }>, searchParams?: Promise<{ newly_created?: string }> }) {
     const [resolvedParams, setResolvedParams] = useState<{ ticker: string } | null>(null)
+    const [isNewlyCreated, setIsNewlyCreated] = useState(false)
     const [agent, setAgent] = useState<Agent | null>(null)
     const [loading, setLoading] = useState(true)
     const [logs, setLogs] = useState<any[]>([])
@@ -25,7 +26,10 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
     const chainId = useChainId()
     const { switchChain } = useSwitchChain()
 
-    useEffect(() => { params.then(setResolvedParams) }, [params])
+    useEffect(() => {
+        params.then(setResolvedParams);
+        if (searchParams) searchParams.then(p => setIsNewlyCreated(p?.newly_created === 'true'));
+    }, [params, searchParams])
 
     // Derived State
     const isCreator = agent && address ? agent.creator.toLowerCase() === address.toLowerCase() : false
@@ -33,7 +37,8 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
     useEffect(() => {
         if (resolvedParams) {
             let retries = 0
-            const maxRetries = 30 // Increased to ~60s
+            const maxRetries = isNewlyCreated ? 150 : 30 // Increase retries for new agents (5 mins vs 60s)
+
             const fetchAgent = () => {
                 getAgentByTicker(resolvedParams.ticker)
                     .then(data => {
@@ -54,7 +59,7 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
             }
             fetchAgent()
         }
-    }, [resolvedParams])
+    }, [resolvedParams, isNewlyCreated])
 
     const handleForceSync = async () => {
         setLoading(true)
@@ -74,7 +79,30 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
 
     // ...
 
-    if (loading) return <AgentBootSequence onComplete={() => { }} />
+    if (loading) {
+        if (isNewlyCreated) {
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center space-y-8 bg-black">
+                    <div className="relative">
+                        <div className="absolute inset-0 bg-accent/20 blur-3xl rounded-full animate-pulse" />
+                        <Rocket className="w-16 h-16 text-accent animate-bounce relative z-10" />
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h2 className="text-2xl font-bold text-white">Deploying Agent Container...</h2>
+                        <p className="text-text-dim max-w-md">
+                            Your agent is being initialized in the TEE Enclave. <br />
+                            We are waiting for block confirmation and indexer sync.
+                        </p>
+                        <div className="flex items-center justify-center gap-2 text-xs font-mono text-accent pt-4">
+                            <span className="w-2 h-2 bg-accent rounded-full animate-ping" />
+                            Scanning Blockchain...
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+        return <AgentBootSequence onComplete={() => { }} />
+    }
 
     if (!agent) return (
         <div className="min-h-screen flex flex-col items-center justify-center text-text-dim space-y-4">
@@ -327,6 +355,35 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
 
                 </div>
             </div>
+
+            {/* CLASSIFIED INTEL (CREATOR ONLY) */}
+            {isCreator && agent.identity && (
+                <div className="bg-[#0A0A0B] border border-red-500/20 rounded-xl p-4 mt-4 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-red-500/5 pointer-events-none animate-pulse" />
+                    <div className="flex items-center gap-2 text-red-400 font-bold text-xs uppercase tracking-widest mb-3">
+                        <Lock className="w-3 h-3" /> Classified Intel (Eyes Only)
+                    </div>
+                    <div className="space-y-3 font-mono text-xs">
+                        <div>
+                            <div className="text-text-dim uppercase text-[10px]">Agent Email</div>
+                            <div className="text-white select-all">{agent.identity.email || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div className="text-text-dim uppercase text-[10px]">X (Twitter) Handle</div>
+                            <div className="text-white select-all">@{agent.identity.username || 'N/A'}</div>
+                        </div>
+                        <div className="pt-2 border-t border-red-500/20 flex gap-2">
+                            <button className="flex-1 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[10px] transition-colors border border-red-500/20">
+                                Reset Credentials
+                            </button>
+                            <button className="flex-1 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded text-[10px] transition-colors border border-red-500/20">
+                                Emergency Hibernate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     )
 }

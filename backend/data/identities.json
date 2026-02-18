@@ -54,5 +54,21 @@
     "password": "bA9hLOwH3U+kdKPl!Aa1",
     "created": 1771428779430,
     "service": "mail.tm"
+  },
+  "MUNU": {
+    "agentId": "MUNU",
+    "username": "agent_3196f262",
+    "email": "agent_3196f262@dollicons.com",
+    "password": "O2XO34dVOnQOU0C/!Aa1",
+    "created": 1771441371712,
+    "service": "mail.tm"
+  },
+  "NOVE": {
+    "agentId": "NOVE",
+    "username": "agent_e32d9b07",
+    "email": "agent_e32d9b07@dollicons.com",
+    "password": "5wk3nhtK3iTAP/hF!Aa1",
+    "created": 1771441551592,
+    "service": "mail.tm"
   }
 }
