@@ -81,8 +81,14 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
 }
 
 // ----------------------------------------------------------------------
-// 1. LIVE TRADING VIEW (The Trenches)
+// 1. LIVE TRADING VIEW (Live View)
 // ----------------------------------------------------------------------
+// ... imports
+import TradingChart from '../../../components/TradingChart'
+import ChatBox from '../../../components/ChatBox'
+
+// ... existing code ...
+
 function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, logs: any[], setLogs: (l: any[]) => void, isCreator: boolean }) {
     const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy')
     const [amount, setAmount] = useState('')
@@ -103,33 +109,15 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
                             <div className="flex items-center gap-3">
                                 <h1 className="text-2xl font-bold leading-none text-white tracking-tight">{agent.name}</h1>
                                 {agent.identity && (
-                                    <div className="relative group">
-                                        <div className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-text-dim hover:text-white cursor-help transition-colors">
-                                            <Shield className="w-3.5 h-3.5" />
+                                    <div className="flex items-center gap-4 ml-4 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full">
+                                        <div className="flex items-center gap-2">
+                                            <Users className="w-3.5 h-3.5 text-blue-400" />
+                                            <span className="text-xs text-blue-400 font-bold">@{agent.identity.username}</span>
                                         </div>
-                                        {/* Popover */}
-                                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-[#111] border border-white/10 rounded-xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none group-hover:pointer-events-auto">
-                                            <div className="text-[10px] uppercase text-text-dim font-bold tracking-widest mb-3 border-b border-white/5 pb-2">Verified Identity</div>
-                                            <div className="space-y-3">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400">
-                                                        <Users className="w-4 h-4" /> {/* X Icon placeholder */}
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-[10px] text-text-dim">X / Twitter</div>
-                                                        <div className="text-xs text-white font-mono">@{agent.identity.username}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400">
-                                                        <Shield className="w-4 h-4" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-[10px] text-text-dim">Secure Email</div>
-                                                        <div className="text-xs text-white font-mono break-all">{agent.identity.email}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <div className="w-px h-3 bg-white/10" />
+                                        <div className="flex items-center gap-1.5 text-xs text-text-dim">
+                                            <Shield className="w-3 h-3 text-success" />
+                                            <span>Verified</span>
                                         </div>
                                     </div>
                                 )}
@@ -162,21 +150,20 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
                         <div className="bg-transparent px-2 py-1 rounded text-[10px] text-text-dim font-mono hover:bg-white/5 cursor-pointer">1H</div>
                         <div className="bg-transparent px-2 py-1 rounded text-[10px] text-text-dim font-mono hover:bg-white/5 cursor-pointer">4H</div>
                     </div>
-                    {/* Simulated TradingView Widget */}
-                    <iframe
-                        src={`https://dexscreener.com/bsc/${LAUNCHPAD_ADDRESS}?embed=1&theme=dark&trades=0&info=0`}
-                        className="w-full h-full border-0 opacity-80 hover:opacity-100 transition-opacity"
-                    />
 
-                    {/* Terminal / Chat Overlay at bottom */}
-                    <div className="h-48 border-t border-white/5 bg-[#050505] flex flex-col">
-                        <div className="h-8 border-b border-white/5 px-4 flex items-center gap-4 text-[10px] font-bold text-text-dim uppercase tracking-wider">
-                            <span className="text-white border-b border-accent h-full flex items-center">System Logs</span>
-                            <span className="hover:text-white cursor-pointer h-full flex items-center">Public Chat</span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-2 font-mono text-[10px] space-y-1">
-                            <SocialFeed ticker={agent.ticker} agentId={agent.id} setLogs={setLogs} />
-                        </div>
+                    import AgentActivityLog from '../../../components/AgentActivityLog'
+                    // ... (imports)
+
+                    // ...
+
+                    {/* Real Chart */}
+                    <div className="h-[55%] relative border-b border-white/5">
+                        <TradingChart data={[]} />
+                    </div>
+
+                    {/* Agent Activity Log (User requested 4x bigger, replacing ChatBox) */}
+                    <div className="flex-1 bg-[#050505] flex flex-col min-h-0">
+                        <AgentActivityLog agentId={agent.id} ticker={agent.ticker} />
                     </div>
                 </div>
 
@@ -196,19 +183,31 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
                                 <span>Amount ({agent.ticker})</span>
                                 <span>Bal: 0.00</span>
                             </div>
-                            <input type="number" placeholder="0.0" className="w-full bg-[#050505] border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-white/30 outline-none" />
+                            <input
+                                type="number"
+                                value={amount}
+                                onChange={e => setAmount(e.target.value)}
+                                placeholder="0.0"
+                                className="w-full bg-[#050505] border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-white/30 outline-none"
+                            />
                         </div>
 
-                        {/* Quick Select */}
+                        {/* Quick Buy Buttons */}
                         <div className="grid grid-cols-4 gap-2">
-                            {['10%', '25%', '50%', 'MAX'].map(q => (
-                                <button key={q} className="py-1 rounded bg-white/5 text-[10px] text-text-dim hover:bg-white/10">{q}</button>
+                            {['0.1', '0.5', '1.0', '5.0'].map(val => (
+                                <button
+                                    key={val}
+                                    onClick={() => setAmount(val)}
+                                    className="py-2.5 rounded-lg bg-white/5 text-xs font-mono text-text-dim hover:bg-white/10 hover:text-white transition-colors border border-white/5"
+                                >
+                                    {val}
+                                </button>
                             ))}
                         </div>
                     </div>
 
                     {/* Submit */}
-                    <button className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider ${tradeType === 'buy' ? 'bg-success text-black hover:bg-green-400' : 'bg-danger text-black hover:bg-red-500'} transition-colors`}>
+                    <button className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider ${tradeType === 'buy' ? 'bg-success text-black hover:bg-green-400' : 'bg-danger text-black hover:bg-red-500'} transition-colors shadow-lg`}>
                         Place {tradeType} Order
                     </button>
 

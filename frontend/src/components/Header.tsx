@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import HardwareConnect from './HardwareConnect'
-import { Plus, Menu, X, LayoutGrid, Egg, User, Rocket } from 'lucide-react'
+import { Plus, Menu, X, LayoutGrid, Egg, User, Rocket, Activity } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { twMerge } from 'tailwind-merge'
 import { clsx, type ClassValue } from 'clsx'
@@ -14,8 +14,8 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const NAV_ITEMS = [
-    { name: 'The Trenches', href: '/', icon: LayoutGrid },
-    { name: 'Launchpad', href: '/launchpad', icon: Rocket },
+    { name: 'Live Feed', href: '/', icon: Activity },
+    { name: 'Incubator', href: '/incubator', icon: Egg },
     { name: 'Profile', href: '/profile', icon: User },
 ]
 
@@ -43,7 +43,10 @@ export default function Header() {
                         <span className="hidden sm:inline">LAUNCH</span>
                     </Link>
 
-                    <HardwareConnect />
+                    {/* Replaced custom button with standard for reliability */}
+                    <div className="rainbow-button-wrapper">
+                        <HardwareConnect />
+                    </div>
                 </div>
             </header>
 
@@ -70,12 +73,7 @@ export default function Header() {
                         >
                             <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white font-bold shadow-[0_0_15px_-5px_rgba(124,58,237,0.5)]">
-                                        F
-                                    </div>
-                                    <span className="font-bold tracking-tight text-lg text-white">
-                                        Forge<span className="text-accent">.fun</span>
-                                    </span>
+                                    <img src="/logo.png" alt="Forge" className="h-32 w-auto object-contain" />
                                 </div>
                                 <button onClick={() => setIsOpen(false)} className="p-2 text-text-dim hover:text-white">
                                     <X className="w-5 h-5" />

@@ -1,41 +1,56 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Egg, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { getAgents, type Agent } from '../../lib/api'
-import TrenchesCard from '../../components/TrenchesCard'
+import IncubatorCard from '../../components/IncubatorCard'
+import { Egg } from 'lucide-react'
 
-export default function Incubator() {
+export const dynamic = 'force-dynamic'
+
+export default function IncubatorPage() {
     const [agents, setAgents] = useState<Agent[]>([])
     const router = useRouter()
 
     useEffect(() => {
-        getAgents().then(data => {
-            // Filter for unlaunched agents (Ghost Proposals)
-            setAgents(data.filter(a => !a.launched))
-        })
+        getAgents().then(setAgents)
+        const interval = setInterval(() => getAgents().then(setAgents), 5000)
+        return () => clearInterval(interval)
     }, [])
 
+    const handleSelectAgent = (agent: Agent) => {
+        router.push(`/agent/${agent.ticker}`)
+    }
+
+    // Incubator ONLY shows unlaunched agents
+    const incubating = agents.filter(a => !a.launched)
+
     return (
-        <div className="min-h-screen pb-20">
-            <div className="flex justify-between items-end mb-12">
-                {/* Header Removed per User Request */}
+        <div className="min-h-screen bg-base text-text-primary p-6 space-y-12">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-accent to-white">
+                        Incubator
+                    </h1>
+                    <p className="text-xs text-text-dim font-mono mt-1">L2_GENESIS_POOL_ACTIVE</p>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {agents.length > 0 ? (
-                    agents.map(agent => (
-                        <TrenchesCard key={agent.id} agent={agent} onClick={() => router.push(`/agent/${agent.ticker}`)} />
-                    ))
+            {/* Incubator Feed */}
+            <section>
+                {incubating.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {incubating.map(agent => (
+                            <IncubatorCard key={agent.id} agent={agent} onClick={() => handleSelectAgent(agent)} />
+                        ))}
+                    </div>
                 ) : (
-                    <div className="col-span-full py-32 text-center border border-white/5 rounded-[32px] bg-surface/50">
-                        <div className="text-text-dim font-mono mb-2">NO_GHOSTS_FOUND</div>
-                        <div className="text-xs text-text-dim/50">The incubator is empty. Go to The Forge to spawn one.</div>
+                    <div className="p-12 border border-dashed border-white/10 rounded-2xl text-center text-text-dim">
+                        No active incubations. Start a new one.
                     </div>
                 )}
-            </div>
+            </section>
         </div>
     )
 }

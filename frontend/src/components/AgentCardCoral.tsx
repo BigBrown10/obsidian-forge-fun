@@ -6,7 +6,7 @@ import { type Agent } from '../lib/api'
 import { formatCompactNumber } from '../lib/formatting'
 import { useRouter } from 'next/navigation'
 
-export default function TrenchesCard({ agent, onClick }: { agent: Agent, onClick?: () => void }) {
+export default function AgentCard({ agent, onClick }: { agent: Agent, onClick?: () => void }) {
     const router = useRouter()
     const isLaunched = agent.launched
 
@@ -33,12 +33,18 @@ export default function TrenchesCard({ agent, onClick }: { agent: Agent, onClick
         <motion.div
             whileHover={{ backgroundColor: 'rgba(255,255,255,0.02)' }}
             onClick={onClick || (() => router.push(`/agent/${agent.ticker}`))}
-            className="group cursor-pointer bg-[#0A0A0A] hover:bg-[#111] border-b border-white/5 p-5 transition-colors grid grid-cols-[auto_1fr] gap-5 items-start relative overflow-hidden"
+            className="group cursor-pointer bg-[#0A0A0A] hover:bg-[#111] border-b border-white/5 p-5 transition-colors flex gap-5 items-start relative overflow-hidden"
         >
             {/* Image (Bigger: 80px) */}
             <div className="w-20 h-20 bg-white/5 rounded-xl overflow-hidden shrink-0 relative border border-white/5 z-10">
                 <img
-                    src={agent.metadataURI ? (JSON.parse(agent.metadataURI).image || image) : image}
+                    src={(() => {
+                        try {
+                            return agent.metadataURI ? (JSON.parse(agent.metadataURI).image || image) : image
+                        } catch {
+                            return image
+                        }
+                    })()}
                     alt={agent.ticker}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     onError={(e) => {
@@ -48,7 +54,7 @@ export default function TrenchesCard({ agent, onClick }: { agent: Agent, onClick
             </div>
 
             {/* Content Container - No fixed height, use gap */}
-            <div className="min-w-0 flex flex-col justify-center min-h-[5rem] w-full z-10 gap-2">
+            <div className="flex-1 min-w-0 flex flex-col justify-center min-h-[5rem] z-10 gap-2">
 
                 {/* Row 1: Name & Ticker */}
                 <div className="flex justify-between items-center w-full gap-2">

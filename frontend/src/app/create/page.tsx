@@ -557,22 +557,43 @@ export default function CreateAgent() {
                     {currentStep === 'launching' && (
                         <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-500">
                             <div className="relative mb-8">
-                                <div className="absolute inset-0 bg-accent blur-[40px] opacity-40 animate-pulse" />
-                                <div className="relative w-24 h-24 rounded-full bg-[#050505] border border-accent flex items-center justify-center">
-                                    {isConfirming || isPending ? (
+                                <div className={`absolute inset-0 blur-[40px] opacity-40 animate-pulse ${writeError ? 'bg-red-500' : 'bg-accent'}`} />
+                                <div className={`relative w-24 h-24 rounded-full bg-[#050505] border flex items-center justify-center ${writeError ? 'border-red-500' : 'border-accent'}`}>
+                                    {isPending ? (
                                         <Loader2 className="w-10 h-10 text-accent animate-spin" />
-                                    ) : (
+                                    ) : isConfirming ? (
+                                        <Loader2 className="w-10 h-10 text-accent animate-spin" />
+                                    ) : isSuccess ? (
                                         <CheckCircle2 className="w-10 h-10 text-success" />
+                                    ) : writeError ? (
+                                        <AlertCircle className="w-10 h-10 text-red-500" />
+                                    ) : (
+                                        <Loader2 className="w-10 h-10 text-accent animate-spin" />
                                     )}
                                 </div>
                             </div>
 
                             <h2 className="text-2xl font-bold text-white mb-2">
-                                {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Deploying to Lattice...' : 'Launch Successful!'}
+                                {writeError ? 'Launch Failed' :
+                                    isPending ? 'Confirm in Wallet...' :
+                                        isConfirming ? 'Deploying to Lattice...' :
+                                            isSuccess ? 'Launch Successful!' :
+                                                'Initializing...'}
                             </h2>
                             <p className="text-text-dim font-mono text-sm max-w-xs">
-                                {pendingProposalId ? 'Finalizing initial pledge transaction...' : 'Initializing TEE Handshake...'}
+                                {writeError ? (writeError.message.includes('User rejected') ? 'Transaction rejected.' : 'An error occurred.') :
+                                    isSuccess ? (pendingProposalId ? 'Finalizing initial pledge transaction...' : 'Initializing TEE Handshake...') :
+                                        'Please confirm the transaction in your wallet.'}
                             </p>
+
+                            {writeError && (
+                                <button
+                                    onClick={() => setCurrentStep('manifesto')}
+                                    className="mt-6 px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                                >
+                                    Try Again
+                                </button>
+                            )}
                         </div>
                     )}
 

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { User, Shield, Wallet } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import { getAgents, type Agent } from '../../lib/api'
-import TrenchesCard from '../../components/TrenchesCard'
+import AgentCard from '../../components/AgentCardCoral'
 
 export default function Profile() {
     const { address, isConnected } = useAccount()
@@ -44,7 +44,7 @@ export default function Profile() {
                     {myAgents.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {myAgents.map(agent => (
-                                <TrenchesCard key={agent.id} agent={agent} />
+                                <AgentCard key={agent.id} agent={agent} />
                             ))}
                         </div>
                     ) : (

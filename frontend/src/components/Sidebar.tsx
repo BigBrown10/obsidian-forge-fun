@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, Egg, Hammer, User, Settings, LogOut, Github, Twitter, Rocket } from 'lucide-react'
+import { LayoutGrid, Egg, Hammer, User, Settings, LogOut, Github, Twitter, Rocket, Activity } from 'lucide-react'
 import { twMerge } from 'tailwind-merge'
 import { clsx, type ClassValue } from 'clsx'
 import HardwareConnect from './HardwareConnect'
@@ -13,8 +13,8 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const NAV_ITEMS = [
-    { name: 'The Trenches', href: '/', icon: LayoutGrid },
-    { name: 'Launchpad', href: '/launchpad', icon: Rocket },
+    { name: 'Live Feed', href: '/', icon: Activity },
+    { name: 'Incubator', href: '/incubator', icon: Egg },
     { name: 'Profile', href: '/profile', icon: User },
 ]
 
@@ -24,14 +24,9 @@ export default function Sidebar() {
     return (
         <aside className="fixed top-0 left-0 h-screen w-[240px] bg-surface/80 backdrop-blur-xl border-r border-white/5 hidden md:flex flex-col z-50">
             {/* Logo Area */}
-            <div className="h-20 flex items-center px-6 border-b border-white/5">
+            <div className="h-24 flex items-center px-6 border-b border-white/5">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white font-bold shadow-[0_0_15px_-5px_rgba(124,58,237,0.5)]">
-                        F
-                    </div>
-                    <span className="font-bold tracking-tight text-lg text-white">
-                        Forge<span className="text-accent">.fun</span>
-                    </span>
+                    <img src="/logo.png" alt="Forge" className="h-[72px] w-auto object-contain" />
                 </div>
             </div>
 

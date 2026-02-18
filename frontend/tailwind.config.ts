@@ -12,12 +12,12 @@ const config: Config = {
                 card: "#0A0A0A", // Surface for cards
                 "card-hover": "#171717", // Slightly lighter for hover
                 "border-subtle": "rgba(255, 255, 255, 0.08)", // ultra-subtle
-                "border-hover": "rgba(124, 58, 237, 0.3)", // Purple hint
+                "border-hover": "rgba(255, 107, 107, 0.3)", // Coral hint
                 "text-primary": "#FFFFFF", // Monochrome White
                 "text-secondary": "#94A3B8", // Slate-400
                 "text-dim": "#52525b", // Zinc-600
-                accent: "#7C3AED", // Electric Purple
-                "accent-dim": "#6D28D9",
+                accent: "#FF6B6B", // Coral
+                "accent-dim": "#E05A5A", // Darker Coral
                 danger: "#EF4444", // Danger Red
                 success: "#10B981", // Success Green
             },
@@ -27,7 +27,7 @@ const config: Config = {
             },
             boxShadow: {
                 'glass': '0 0 0 1px rgba(255, 255, 255, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                'glow': '0 0 20px -5px rgba(124, 58, 237, 0.3)',
+                'glow': '0 0 20px -5px rgba(255, 107, 107, 0.3)',
             },
             keyframes: {
                 'pulse-slow': {
