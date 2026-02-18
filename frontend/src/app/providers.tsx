@@ -14,7 +14,7 @@ const config = getDefaultConfig({
     projectId,
     chains: [bscTestnet],
     transports: {
-        [bscTestnet.id]: http('https://bsc-testnet.publicnode.com'),
+        [bscTestnet.id]: http(process.env.NEXT_PUBLIC_BSC_RPC_URL || 'https://bsc-testnet.publicnode.com'),
     },
 })
 
