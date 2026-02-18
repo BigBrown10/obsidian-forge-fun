@@ -21,9 +21,6 @@ const agentManager = new AgentManager();
 // --- Startup ---
 const fetchAgents = async () => {
     try {
-        console.log(`[INIT] Starting Fetch Loop...`);
-        console.log(`[DEBUG] CONTRACT: ${LAUNCHPAD_ADDRESS}`);
-        console.log(`[DEBUG] RPC: ${RPC_URL}`);
         console.log(`[INIT] Fetching agents via Count & Loop (Bypassing RPC Log Limits)...`);
 
         // 1. Get Total Count
@@ -212,20 +209,17 @@ console.log(`[LISTENER] Watching for 'Launched' events on ${LAUNCHPAD_ADDRESS}..
 publicClient.watchContractEvent({
     address: LAUNCHPAD_ADDRESS,
     abi: [
-        parseAbiItem('event Launched(uint256 indexed id, address tokenAddress, uint256 raisedAmount)')
+        parseAbiItem('event Launched(uint256 indexed id, address tokenAddress, uint256 raisedAmount)'),
+        parseAbiItem('event ProposalCreated(uint256 indexed id, string name, string ticker, address indexed creator)')
     ],
-    eventName: 'Launched',
     onLogs: async (logs) => {
         for (const log of logs) {
-            const { id, tokenAddress, raisedAmount } = log.args;
-            console.log(`🚀 [EVENT] Agent ${id} LAUNCHED! Token: ${tokenAddress}`);
+            // Check event name (viem logs might not have eventName directly if multiple ABIs passed? 
+            // Actually watchContractEvent with list of ABIs might trigger for all. We need to check args.)
 
-            // Update Agent State immediately
-            // Note: In a real app, we'd update the DB. Here we just re-fetch to sync memory.
+            // Re-fetch all to be safe and simple
+            console.log(`[EVENT] Contract Event Detected! Syncing...`);
             await fetchAgents();
-
-            // Trigger Agent's "First Tweet" via AgentManager?
-            // agentManager.triggerLaunchsequence(id);
         }
     }
 });

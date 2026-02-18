@@ -91,10 +91,21 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
         </div>
     )
 
-    // STRICT SEPARATION OF VIEWS
-    // PUMP.FUN MODEL: All agents are "Live" (Tradable) immediately on creation.
-    // "Incubator" is just the bonding curve phase.
-    const isLive = true
+    // VIEW SELECTION LOGIC
+    // - Incubator Mode + Not Launched = ICO View
+    // - Instant Mode OR Launched = Live Trading View
+
+    let metadata: any = {};
+    try {
+        metadata = agent.metadataURI && agent.metadataURI.startsWith('{') ? JSON.parse(agent.metadataURI) : {}
+    } catch (e) { console.error("Metadata parse error", e) }
+
+    const launchMode = metadata.launchMode || 'instant'
+    const isIncubator = launchMode === 'incubator' && !agent.launched
+
+    if (isIncubator) {
+        return <ICOLaunchView agent={agent} />
+    }
 
     return <LiveTradingView agent={agent} logs={logs} setLogs={setLogs} isCreator={isCreator} />
 }

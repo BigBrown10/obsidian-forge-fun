@@ -219,6 +219,7 @@ export default function CreateAgent() {
                 vaultPercent,
                 opsPercent: 100 - vaultPercent,
                 agentType,
+                launchMode, // Added launchMode
                 skills: AGENT_PRESETS.find(p => p.id === agentType)?.skills || [],
                 budgetAllocation: {
                     marketing: marketingPercent,
