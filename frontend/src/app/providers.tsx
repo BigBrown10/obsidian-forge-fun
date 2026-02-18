@@ -14,7 +14,7 @@ const config = getDefaultConfig({
     projectId,
     chains: [bscTestnet],
     transports: {
-        [bscTestnet.id]: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
+        [bscTestnet.id]: http('https://bsc-testnet.publicnode.com'),
     },
 })
 
