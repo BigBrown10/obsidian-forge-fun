@@ -102,12 +102,18 @@ const app = new Elysia({ adapter: node() })
     .get('/', () => 'Hello from Forge.fun Backend (Obsidian Core)')
     .get('/health', () => 'OK') // K8s/OpenClaw Health Check
     .get('/api/agents', async () => {
-        const agents = await fetchAgents()
-        return agents
+        // FAST PATH: Return from memory
+        // Convert Map values to array and reverse to show newest first
+        const agents = Array.from(agentManager.activeAgents.values()).reverse();
+        return agents;
     })
     .get('/api/agents/:id', async ({ params: { id } }) => {
-        // Fetch specific agent details 
-        // For MVP, just reusing fetchAgents filter or readContract directly
+        // FAST PATH: Check memory first
+        if (agentManager.activeAgents.has(id)) {
+            return agentManager.activeAgents.get(id);
+        }
+
+        // SLOW PATH: Fallback to RPC (and cache it)
         try {
             const data = await publicClient.readContract({
                 address: LAUNCHPAD_ADDRESS,
@@ -123,15 +129,22 @@ const app = new Elysia({ adapter: node() })
             // Fetch Identity
             const identity = agentManager.getAgentIdentity(id);
 
-            return {
+            const agent = {
                 id,
                 creator, name, ticker, metadataURI,
                 targetAmount: targetAmount.toString(),
                 pledgedAmount: pledgedAmount.toString(),
-                createdAt: createdAt.toString(),
+                bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
+                createdAt: new Date(Number(createdAt) * 1000).toISOString(),
                 launched, tokenAddress,
-                identity // <--- Exposed here
+                identity,
+                skills: [1] // Default
             }
+
+            // Cache it!
+            agentManager.registerAgent(agent);
+
+            return agent;
         } catch (e) {
             return { error: 'Agent not found' }
         }

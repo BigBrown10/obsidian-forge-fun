@@ -12,6 +12,7 @@ import ManageAgent from './manage'
 import AgentActivityLog from '../../../components/AgentActivityLog'
 import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap, Users, Rocket, Lock, Shield, BarChart3, MessageSquare } from 'lucide-react'
 import { formatCompactNumber } from '../../../lib/formatting'
+import AgentBootSequence from '../../../components/AgentBootSequence'
 
 export default function AgentDetail({ params }: { params: Promise<{ ticker: string }> }) {
     const [resolvedParams, setResolvedParams] = useState<{ ticker: string } | null>(null)
@@ -70,12 +71,10 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
         }
     }
 
-    if (loading) return (
-        <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-            <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-            <div className="text-text-dim text-sm font-mono tracking-widest uppercase">Establishing Uplink...</div>
-        </div>
-    )
+
+    // ...
+
+    if (loading) return <AgentBootSequence onComplete={() => { }} />
 
     if (!agent) return (
         <div className="min-h-screen flex flex-col items-center justify-center text-text-dim space-y-4">
