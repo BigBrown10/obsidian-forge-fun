@@ -6,5 +6,53 @@
     "password": "++lA68hZNLITh50Q!Aa1",
     "created": 1771098980011,
     "service": "mail.tm"
+  },
+  "": {
+    "agentId": "",
+    "username": "agent_893ff1c6",
+    "email": "agent_893ff1c6@dollicons.com",
+    "password": "SNxKJ17FYkLTSm/9!Aa1",
+    "created": 1771428449395,
+    "service": "mail.tm"
+  },
+  "ASS": {
+    "agentId": "ASS",
+    "username": "agent_82b8ba80",
+    "email": "agent_82b8ba80@dollicons.com",
+    "password": "1f4I20APqi66TG6l!Aa1",
+    "created": 1771428449495,
+    "service": "mail.tm"
+  },
+  "WAN": {
+    "agentId": "WAN",
+    "username": "agent_be4dc7ff",
+    "email": "agent_be4dc7ff@dollicons.com",
+    "password": "R37y9cq+R1yL2d9M!Aa1",
+    "created": 1771428449455,
+    "service": "mail.tm"
+  },
+  "MUN": {
+    "agentId": "MUN",
+    "username": "agent_637c1a13",
+    "email": "agent_637c1a13@dollicons.com",
+    "password": "iixzsxe4emQqx0yr!Aa1",
+    "created": 1771428449489,
+    "service": "mail.tm"
+  },
+  "APE": {
+    "agentId": "APE",
+    "username": "agent_d4e3ee23",
+    "email": "agent_d4e3ee23@dollicons.com",
+    "password": "KPNg4AKWhpYOGizW!Aa1",
+    "created": 1771428449490,
+    "service": "mail.tm"
+  },
+  "GET": {
+    "agentId": "GET",
+    "username": "agent_ed32f970",
+    "email": "agent_ed32f970@dollicons.com",
+    "password": "bA9hLOwH3U+kdKPl!Aa1",
+    "created": 1771428779430,
+    "service": "mail.tm"
   }
 }

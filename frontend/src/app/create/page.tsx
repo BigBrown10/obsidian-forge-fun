@@ -110,7 +110,7 @@ export default function CreateAgent() {
     const [currentStep, setCurrentStep] = useState<'mode' | 'manifesto' | 'pledge' | 'launching'>('mode')
     const [pendingProposalId, setPendingProposalId] = useState<bigint | null>(null)
     const [savedMetadata, setSavedMetadata] = useState<any>(null) // For optimistic sync
-
+    const [isRegistering, setIsRegistering] = useState(false) // New state for UI feedback
 
     // Image
     const [image, setImage] = useState<File | null>(null)
@@ -149,55 +149,59 @@ export default function CreateAgent() {
     // Handle Transaction Success
     useEffect(() => {
         if (isSuccess && currentStep === 'launching') {
-            const registerOptimistic = async (id: bigint) => {
-                try {
-                    console.log("🚀 Optimistic Registering Agent:", id.toString());
-                    const agentData = {
-                        id: id.toString(),
-                        name,
-                        ticker,
-                        creator: address,
-                        metadataURI: savedMetadata ? JSON.stringify(savedMetadata) : "{}",
-                        targetAmount: parseEther(target).toString(),
-                        pledgedAmount: parseEther(initialBuy).toString(),
-                        bondingProgress: 0,
-                        launched: launchMode === 'instant', // Instant = Live immediately
-                        skills: AGENT_PRESETS.find(p => p.id === agentType)?.skills || [1],
-                    };
+            const handleSuccess = async () => {
+                if (!pendingProposalId && proposalCount) {
+                    // Step 1 Success: Proposal Created
+                    const id = proposalCount - BigInt(1)
+                    setPendingProposalId(id)
+                    console.log("Proposal Created with ID:", id)
 
-                    await fetch('/api/agents/manual-register', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(agentData)
-                    });
-                    console.log("✅ Optimistic Registration Complete");
-                } catch (e) {
-                    console.error("Optimistic Register Failed:", e);
-                }
-            };
+                    // 1. Optimistic Register (Await this!)
+                    setIsRegistering(true)
+                    try {
+                        console.log("🚀 Optimistic Registering Agent:", id.toString());
+                        const agentData = {
+                            id: id.toString(),
+                            name,
+                            ticker,
+                            creator: address,
+                            metadataURI: savedMetadata ? JSON.stringify(savedMetadata) : "{}",
+                            targetAmount: parseEther(target).toString(),
+                            pledgedAmount: parseEther(initialBuy).toString(),
+                            bondingProgress: 0,
+                            launched: launchMode === 'instant',
+                            skills: AGENT_PRESETS.find(p => p.id === agentType)?.skills || [1],
+                        };
 
-            if (!pendingProposalId && proposalCount) {
-                // Step 1 Success: Proposal Created
-                const id = proposalCount - BigInt(1)
-                setPendingProposalId(id)
-                console.log("Proposal Created with ID:", id)
+                        await fetch('/api/agents/manual-register', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(agentData)
+                        });
+                        console.log("✅ Optimistic Registration Complete");
+                        // Wait a tiny bit more for "Scanning" effect
+                        await new Promise(r => setTimeout(r, 800));
+                    } catch (e) {
+                        console.error("Optimistic Register Failed (Proceeding anyway):", e);
+                    } finally {
+                        setIsRegistering(false)
+                    }
 
-                // Register immediately
-                registerOptimistic(id);
-
-                if (parseFloat(initialBuy) > 0) {
-                    // Proceed to Pledge
-                    setTimeout(() => handlePledge(id), 1000)
-                } else {
-                    // Done! Redirect
+                    // 2. Next Steps
+                    if (parseFloat(initialBuy) > 0) {
+                        // Proceed to Pledge
+                        setTimeout(() => handlePledge(id), 500)
+                    } else {
+                        // Done! Redirect
+                        // Give UI a moment to show "Success"
+                        setTimeout(() => router.push(`/agent/${ticker}`), 500)
+                    }
+                } else if (pendingProposalId && !isRegistering) {
+                    // Step 2 Success: Pledge Complete
                     setTimeout(() => router.push(`/agent/${ticker}`), 1000)
                 }
-            } else if (pendingProposalId) {
-                // Step 2 Success: Pledge Complete
-                // Re-register to update pledged amount? Ideally backend handles pledge event too.
-                // But let's just redirect.
-                setTimeout(() => router.push(`/agent/${ticker}`), 1000)
             }
+            handleSuccess();
         }
     }, [isSuccess, currentStep, proposalCount, pendingProposalId, initialBuy, ticker, router, savedMetadata, address, name, target, launchMode, agentType])
 
@@ -656,13 +660,15 @@ export default function CreateAgent() {
                                 {writeError ? 'Launch Failed' :
                                     isPending ? 'Confirm in Wallet...' :
                                         isConfirming ? 'Deploying to Lattice...' :
-                                            isSuccess ? 'Launch Successful!' :
-                                                'Initializing...'}
+                                            isRegistering ? 'Syncing to Neural Net...' :
+                                                isSuccess ? 'Launch Successful!' :
+                                                    'Initializing...'}
                             </h2>
                             <p className="text-text-dim font-mono text-sm max-w-xs">
                                 {writeError ? (writeError.message.includes('User rejected') ? 'Transaction rejected.' : writeError.message) :
-                                    isSuccess ? (pendingProposalId ? 'Finalizing initial pledge transaction...' : 'Initializing TEE Handshake...') :
-                                        'Please confirm the transaction in your wallet.'}
+                                    isRegistering ? 'Registering agent with TEE Enclave...' :
+                                        isSuccess ? (pendingProposalId ? 'Finalizing initial pledge transaction...' : 'Initializing TEE Handshake...') :
+                                            'Please confirm the transaction in your wallet.'}
                             </p>
 
                             {writeError && (
