@@ -188,22 +188,40 @@ export default function CreateAgent() {
                     }
 
                     // 2. Next Steps
-                    if (parseFloat(initialBuy) > 0) {
-                        // Proceed to Pledge
+                    if (launchMode === 'incubator') {
+                        // Incubator Mode: Gas Only. No Pledge.
+                        setTimeout(() => router.push(`/agent/${ticker}`), 500)
+                    } else if (parseFloat(initialBuy) > 0) {
+                        // Instant Mode with Buy
                         setTimeout(() => handlePledge(id), 500)
                     } else {
-                        // Done! Redirect
-                        // Give UI a moment to show "Success"
+                        // Instant Mode without Buy
                         setTimeout(() => router.push(`/agent/${ticker}`), 500)
                     }
                 } else if (pendingProposalId && !isRegistering) {
-                    // Step 2 Success: Pledge Complete
+                    // Step 2 Success: Pledge Complete (Only for Instant Mode)
                     setTimeout(() => router.push(`/agent/${ticker}`), 1000)
                 }
             }
             handleSuccess();
         }
     }, [isSuccess, currentStep, proposalCount, pendingProposalId, initialBuy, ticker, router, savedMetadata, address, name, target, launchMode, agentType])
+
+    // ... (rest of file)
+
+    // UI Change for Step:
+    // If Incubator, we might want to change the "Continue" text or skip the Pledge UI entirely?
+    // Current flow: Mode -> Manifesto -> Pledge -> Launching
+    // For Incubator: Mode -> Manifesto -> Launching (Triggered by button on Manifesto?)
+    // OR: Mode -> Manifesto -> Pledge (but Pledge is "Gas Only" / "Deploy")
+
+    // Let's modify the "Manifesto" step's "Continue" button action.
+    // If Incubator, go straight to launch? Or show a confirmation "Deploy Incubator (Gas Only)"?
+    // The "Pledge" step UI has a "Launch Sequence (Gas Only)" button if amount is 0.
+    // So we can re-use the Pledge step but FORCE amount to 0 and hide the inputs?
+
+    // ... logic below ... 
+
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -584,11 +602,26 @@ export default function CreateAgent() {
                             </div>
 
                             <button
-                                onClick={() => setCurrentStep('pledge')}
+                                onClick={() => {
+                                    if (launchMode === 'incubator') {
+                                        // Skip Pledge -> Go straight to Launch
+                                        handleCreateProposal()
+                                    } else {
+                                        setCurrentStep('pledge')
+                                    }
+                                }}
                                 disabled={!name || !ticker}
                                 className="w-full py-5 bg-white text-black rounded-2xl font-bold text-lg hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             >
-                                Continue <ArrowRight className="w-5 h-5" />
+                                {launchMode === 'incubator' ? (
+                                    <>
+                                        <Rocket className="w-5 h-5" /> Deploy Incubator (Gas Only)
+                                    </>
+                                ) : (
+                                    <>
+                                        Continue <ArrowRight className="w-5 h-5" />
+                                    </>
+                                )}
                             </button>
                         </div>
                     )}

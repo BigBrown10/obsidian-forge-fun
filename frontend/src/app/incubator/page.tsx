@@ -22,8 +22,22 @@ export default function IncubatorPage() {
         router.push(`/agent/${agent.ticker}`)
     }
 
-    // Incubator ONLY shows unlaunched agents
-    const incubating = agents.filter(a => !a.launched)
+    // Incubator ONLY shows unlaunched agents that are NOT instant launch
+    const incubating = agents.filter(a => {
+        // Parse metadata to check launchMode
+        let metadata: any = {}
+        try {
+            metadata = a.metadataURI && a.metadataURI.startsWith('{') ? JSON.parse(a.metadataURI) : {}
+        } catch (e) { console.error("Metadata parse error", e) }
+
+        const launchMode = metadata.launchMode || 'instant' // Default to instant for legacy? Or incubator?
+        // Actually, if it's not launched, it might be instant waiting for pledge?
+        // But instant logic in create page sets launched=true optimistically.
+        // So checking !launched should be enough IF instant launch sets launched=true.
+        // However, user said "delete the instant tokens from incubator".
+        // Let's be explicit:
+        return !a.launched && launchMode === 'incubator'
+    })
 
     return (
         <div className="min-h-screen bg-base text-text-primary p-6 space-y-12">
