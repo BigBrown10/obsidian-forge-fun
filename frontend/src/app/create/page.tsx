@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain, useReadContract } from 'wagmi'
 import { parseEther } from 'viem'
 import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI } from '../../lib/contracts'
-import { Loader2, Upload, Hammer, Zap, ArrowRight, CheckCircle2, RefreshCw, Rocket, Egg, ChevronDown } from 'lucide-react'
+import { Loader2, Upload, Hammer, Zap, ArrowRight, CheckCircle2, RefreshCw, Rocket, Egg, ChevronDown, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { MOCK_PERSONAS } from '../../data/mock'
 
