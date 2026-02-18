@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit'
 import '@rainbow-me/rainbowkit/styles.css'
 
-const projectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || '4f91361273932Z66518175904d493'
+const projectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || '4f9136127393266518175904d493' // Removed invalid 'Z'
 
 const config = getDefaultConfig({
     appName: 'Forge.fun',

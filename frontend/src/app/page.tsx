@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { getAgents, type Agent } from '../lib/api'
 import IncubatorCard from '../components/IncubatorCard'
 import TokenCard from '../components/TokenCard'
+import TokenRow from '../components/TokenRow'
 
 export default function Dashboard() {
   const [agents, setAgents] = useState<Agent[]>([])
@@ -23,32 +24,63 @@ export default function Dashboard() {
     router.push(`/agent/${agent.ticker}`)
   }
 
-  // Live Feed shows:
-  // 1. Agents that are LAUNCHED (from incubator)
-  // 2. Agents that use 'instant' launch mode (regardless of on-chain launched flag if bonding curve is active)
   const liveAgents = agents.filter(a => {
     try {
       const m = a.metadataURI && a.metadataURI.startsWith('{') ? JSON.parse(a.metadataURI) : {}
       const isIncubator = m.launchMode === 'incubator'
       return a.launched || !isIncubator
     } catch { return true }
-  }).slice(0, 50)
+  }).sort((a, b) => Number(b.id) - Number(a.id))
+
+  const incubatorAgents = agents.filter(a => {
+    try {
+      const m = a.metadataURI && a.metadataURI.startsWith('{') ? JSON.parse(a.metadataURI) : {}
+      return m.launchMode === 'incubator' && !a.launched
+    } catch { return false }
+  })
 
   return (
     <div className="min-h-screen bg-base text-text-primary p-6 space-y-12">
 
 
-      {/* Live Feed */}
+      {/* Incubator Feed (Featured Drops Style) */}
+      <section>
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+          <h2 className="text-xl font-bold text-white">Incubator</h2>
+        </div>
+
+        {incubatorAgents.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {incubatorAgents.map(agent => (
+              <TokenCard key={agent.id} agent={agent} onClick={() => handleSelectAgent(agent)} />
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 border border-dashed border-white/10 rounded-2xl text-center text-text-dim text-sm">
+            No active incubations. Be the first to start one.
+          </div>
+        )}
+      </section>
+
+      {/* Live Feed (Scanner/Terminal Style) */}
       <section>
         <div className="flex items-center gap-2 mb-6">
           <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-          <h2 className="text-xl font-bold text-white">Now Trading</h2>
+          <h2 className="text-xl font-bold text-white">Live Terminal</h2>
         </div>
 
         {liveAgents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="flex flex-col border-t border-white/5">
+            <div className="grid grid-cols-12 gap-4 px-4 py-2 text-[10px] text-text-dim uppercase tracking-wider font-bold">
+              <div className="col-span-4">Agent</div>
+              <div className="col-span-2 hidden sm:block">Age</div>
+              <div className="col-span-2 hidden sm:block">Liquidity</div>
+              <div className="col-span-2 hidden sm:block">Volume</div>
+              <div className="col-span-2 text-right pr-4">Action</div>
+            </div>
             {liveAgents.map(agent => (
-              <TokenCard key={agent.id} agent={agent} onClick={() => handleSelectAgent(agent)} />
+              <TokenRow key={agent.id} agent={agent} />
             ))}
           </div>
         ) : (
