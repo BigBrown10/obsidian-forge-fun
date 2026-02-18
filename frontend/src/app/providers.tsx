@@ -24,9 +24,6 @@ const config = getDefaultConfig({
             http('https://bsc-testnet.publicnode.com'),
             http('https://bsc-testnet-rpc.publicnode.com'),
             http('https://api.zan.top/bsc-testnet'),
-
-            // Fallbacks
-            http('https://bsc-testnet.public.blastapi.io'),
         ]),
     },
 })
