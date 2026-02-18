@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi'
-import { parseEther } from 'viem'
+import { parseEther, formatEther, erc20Abi } from 'viem'
 import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI, ROUTER_ADDRESS, ROUTER_ABI } from '../../../lib/contracts'
 import { getAgentByTicker, type Agent } from '../../../lib/api'
 import { formatMarketCap } from '../../../data/mock'
@@ -88,6 +88,7 @@ export default function AgentDetail({ params }: { params: Promise<{ ticker: stri
 import TradingChart from '../../../components/TradingChart'
 import ChatBox from '../../../components/ChatBox'
 
+
 // ... existing code ...
 
 function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, logs: any[], setLogs: (l: any[]) => void, isCreator: boolean }) {
@@ -111,33 +112,27 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
                 functionName: 'swapExactETHForTokens',
                 args: [
                     BigInt(0), // amountOutMin (slippage ignored for MVP)
-                    ['0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd', agent.tokenAddress], // WBNB -> Token
+                    ['0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd' as `0x${string}`, agent.tokenAddress as `0x${string}`], // WBNB -> Token
                     address,
                     deadline
                 ],
                 value: parsedAmount
             });
         } else {
-            // Sell Logic (Approvals skipped for MVP single-click, would need separate Approve flow or Permit)
-            // For verification, we assume user might have approved or we just show alert.
-            // Actually, let's just alert for Sell that it requires approval first in this version.
-            alert("Sell requires Token Approval first. Please use Buy for initial test.");
-
-            /* 
-            // Real implementation would be:
+            // Sell Logic
+            // We assume user has clicked 'Approve' if needed.
             writeContract({
-               address: ROUTER_ADDRESS,
-               abi: ROUTER_ABI,
-               functionName: 'swapExactTokensForETH',
-               args: [
-                   parsedAmount,
-                   BigInt(0),
-                   [agent.tokenAddress, '0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd'],
-                   address,
-                   deadline
-               ]
+                address: ROUTER_ADDRESS,
+                abi: ROUTER_ABI,
+                functionName: 'swapExactTokensForETH',
+                args: [
+                    parsedAmount,
+                    BigInt(0),
+                    [agent.tokenAddress as `0x${string}`, '0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd' as `0x${string}`],
+                    address,
+                    deadline
+                ]
             })
-            */
         }
     }
 
@@ -252,13 +247,31 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
                     </div>
 
                     {/* Submit */}
-                    <button
-                        onClick={handleSwap}
-                        disabled={isPending || isConfirming}
-                        className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider ${tradeType === 'buy' ? 'bg-success text-black hover:bg-green-400' : 'bg-danger text-black hover:bg-red-500'} transition-colors shadow-lg disabled:opacity-50`}
-                    >
-                        {isPending ? 'Swapping...' : `Place ${tradeType} Order`}
-                    </button>
+                    <div className="flex gap-2">
+                        {tradeType === 'sell' && (
+                            <button
+                                onClick={() => {
+                                    if (!amount) return;
+                                    writeContract({
+                                        address: agent.tokenAddress,
+                                        abi: erc20Abi,
+                                        functionName: 'approve',
+                                        args: [ROUTER_ADDRESS, parseEther(amount)]
+                                    })
+                                }}
+                                className="w-1/3 py-4 rounded-xl font-bold uppercase tracking-wider bg-white/10 text-white hover:bg-white/20 transition-colors shadow-lg"
+                            >
+                                Approve
+                            </button>
+                        )}
+                        <button
+                            onClick={handleSwap}
+                            disabled={isPending || isConfirming}
+                            className={`flex-1 py-4 rounded-xl font-bold uppercase tracking-wider ${tradeType === 'buy' ? 'bg-success text-black hover:bg-green-400' : 'bg-danger text-black hover:bg-red-500'} transition-colors shadow-lg disabled:opacity-50`}
+                        >
+                            {isPending ? 'Tx Pending...' : tradeType === 'buy' ? 'Buy Now' : 'Sell Now'}
+                        </button>
+                    </div>
 
                     {writeError && <div className="text-red-500 text-xs mt-2 text-center">{writeError.message}</div>}
                     {isSuccess && <div className="text-green-500 text-xs mt-2 text-center">Swap Successful!</div>}
@@ -329,7 +342,7 @@ function ICOLaunchView({ agent }: { agent: Agent }) {
                         <ChevronLeft className="w-4 h-4" /> Back to Launchpad
                     </Link>
 
-                    <div className="w-24 h-24 rounded-2xl overflow-hidden border border-white/20 shadow-2xl">
+                    <div className="w-48 h-48 rounded-3xl overflow-hidden border border-white/20 shadow-2xl shrink-0 bg-black/20">
                         <img src={metadata.image || `https://api.dicebear.com/9.x/shapes/svg?seed=${agent.ticker}`} className="w-full h-full object-cover" />
                     </div>
 

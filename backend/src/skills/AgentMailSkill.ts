@@ -9,19 +9,35 @@ export class AgentMailSkill implements ISkill {
         const action = input?.action || 'check';
 
         if (action === 'create') {
-            // In production: use Mail.tm API to create a disposable inbox
-            const email = `${agent.ticker.toLowerCase()}_${Date.now().toString(36)}@mail.tm`;
-            return `📧 [MAIL] Created inbox: ${email} | Ready for verifications and outreach.`;
+            try {
+                // 1. Get Domain
+                const domainsRes = await fetch('https://api.mail.tm/domains');
+                const domains = await domainsRes.json();
+                const domain = domains['hydra:member'][0].domain;
+
+                // 2. Create Account
+                const username = `${agent.ticker.toLowerCase()}_${Math.floor(Math.random() * 10000)}`;
+                const email = `${username}@${domain}`;
+                const password = `${agent.ticker}PA$$${Math.floor(Math.random() * 999)}`;
+
+                const accRes = await fetch('https://api.mail.tm/accounts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address: email, password: password })
+                });
+
+                if (!accRes.ok) throw new Error('Failed to create mail.tm account');
+
+                // Return credentials JSON so AccountCreationSkill can parse it
+                return JSON.stringify({ email, password, provider: 'mail.tm' });
+
+            } catch (e: any) {
+                console.error("Mail creation failed", e);
+                return JSON.stringify({ error: e.message });
+            }
         }
 
-        if (action === 'send') {
-            const to = input?.to || 'recipient@example.com';
-            const subject = input?.subject || `Update from ${agent.name}`;
-            return `📧 [MAIL] Sent email to ${to} | Subject: "${subject}" | Status: Queued`;
-        }
-
-        // Default: check inbox
-        const unread = Math.floor(Math.random() * 5);
-        return `📧 [MAIL] ${agent.ticker} inbox checked. ${unread} unread message(s).${unread > 0 ? ' Processing...' : ''}`;
+        // ... existing read logic placeholder ...
+        return `📧 [MAIL] Checked.`;
     }
 }

@@ -10,6 +10,7 @@
         "@elysiajs/node": "latest",
         "@types/node": "latest",
         "elysia": "latest",
+        "playwright": "^1.58.2",
         "puppeteer": "^24.37.2",
         "tsx": "latest",
         "typescript": "latest",
