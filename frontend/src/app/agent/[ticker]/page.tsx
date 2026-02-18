@@ -9,6 +9,7 @@ import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI } from '../../../lib/contracts'
 import { getAgentByTicker, type Agent } from '../../../lib/api'
 import { formatMarketCap } from '../../../data/mock'
 import ManageAgent from './manage'
+import AgentActivityLog from '../../../components/AgentActivityLog'
 import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap, Users, Rocket, Lock, Shield, BarChart3, MessageSquare } from 'lucide-react'
 import { formatCompactNumber } from '../../../lib/formatting'
 
@@ -151,10 +152,7 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
                         <div className="bg-transparent px-2 py-1 rounded text-[10px] text-text-dim font-mono hover:bg-white/5 cursor-pointer">4H</div>
                     </div>
 
-                    import AgentActivityLog from '../../../components/AgentActivityLog'
-                    // ... (imports)
 
-                    // ...
 
                     {/* Real Chart */}
                     <div className="h-[55%] relative border-b border-white/5">
