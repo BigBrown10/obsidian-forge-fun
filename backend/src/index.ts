@@ -295,7 +295,8 @@ const app = new Elysia({ adapter: node() })
                     pledgedAmount: pledgedAmount.toString(),
                     bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
                     createdAt: new Date(Number(createdAt) * 1000).toISOString(),
-                    launched, tokenAddress,
+                    launched: true, // Force optimistic 'launched' for Instant Mode so it shows in feed
+                    tokenAddress,
                     identity,
                     skills: [1], // Default
                     launchMode: 'instant' // Default, will be overwritten by registerAgent if metadata exists

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { getAgents, type Agent } from '../../lib/api'
 import IncubatorCard from '../../components/IncubatorCard'
 import { Egg } from 'lucide-react'
@@ -62,7 +63,10 @@ export default function IncubatorPage() {
                     </div>
                 ) : (
                     <div className="p-12 border border-dashed border-white/10 rounded-2xl text-center text-text-dim">
-                        No active incubations. Start a new one.
+                        <p className="mb-4">No active incubations.</p>
+                        <Link href="/create?mode=incubator" className="px-4 py-2 bg-accent text-black font-bold rounded hover:brightness-110 transition-all">
+                            Start Incubation
+                        </Link>
                     </div>
                 )}
             </section>

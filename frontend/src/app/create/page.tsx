@@ -310,9 +310,12 @@ function CreateAgentContent() {
                     console.log("1. Uploading Image to Greenfield...");
                     imageUrl = await uploadToGreenfield(image, address || '0x0000000000000000000000000000000000000000');
                     console.log("Image Uploaded:", imageUrl);
+                    if (!imageUrl) throw new Error("Image upload returned empty URL");
                 } catch (err) {
                     console.error("Image Upload Failed:", err);
-                    // continue without image
+                    alert("Image upload failed. Please try again or use a different image.");
+                    setCurrentStep('mode'); // Reset to first step or handle error better
+                    return; // STOP execution
                 }
             }
 

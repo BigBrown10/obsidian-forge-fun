@@ -27,7 +27,8 @@ export default function Dashboard() {
   const liveAgents = agents.filter(a => {
     // STRICT FILTER: Only Launched agents are Live.
     // If it's not launched, it's NOT live. Period.
-    if (!a.launched) return false;
+    // EXCEPTION: 'instant' mode agents are considered live immediately (optimistic)
+    if (!a.launched && a.launchMode !== 'instant') return false;
 
     // Double check metadata to ensure we don't accidentally show a "launched" incubator if that's even possible (it shouldn't be until TGE)
     // But for now, launched = true is the source of truth for "Live Trading".
