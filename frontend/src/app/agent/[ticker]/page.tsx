@@ -21,6 +21,7 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
     const [creationMode, setCreationMode] = useState<string>('instant')
     const [optimisticAgent, setOptimisticAgent] = useState<Agent | null>(null)
     const [isNewlyCreated, setIsNewlyCreated] = useState(false)
+    const [logs, setLogs] = useState<any[]>([])
 
     // React Query Hook
     const { data: realAgent, isLoading: isQueryLoading } = useAgent(resolvedParams?.ticker || '')
