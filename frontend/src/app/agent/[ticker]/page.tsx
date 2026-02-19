@@ -170,7 +170,7 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
     } catch (e) { console.error("Metadata parse error", e) }
 
     // Backend should ideally provide 'launchMode', but we fallback to metadata/param for speed
-    const launchMode = activeAgent.launchMode || metadata.launchMode || resolvedParams?.mode || 'instant';
+    const launchMode = activeAgent.launchMode || metadata.launchMode || creationMode || 'instant';
 
     // Strict Check:
     // If it's an Incubator agent and it hasn't launched yet, show the Incubator UI.
