@@ -216,37 +216,53 @@ function CreateAgentContent() {
             const handleSuccess = async () => {
                 console.log("✅ Transaction Confirmed!");
 
-                // If we somehow missed the optimistic step (e.g. proposalCount wasn't ready), try again?
-                // Or just rely on the backend poll now.
-                // But we should route the user.
+                // 1. Trigger Backend Sync Immediately (Fire & Forget)
+                if (hash) {
+                    fetch('/api/sync-tx', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ txHash: hash })
+                    }).catch(err => console.error("Background Sync Trigger Failed (Non-fatal):", err));
+                }
 
-                const id = pendingProposalId || (proposalCount ? proposalCount - BigInt(1) : BigInt(0));
-                // Note: If proposalCount updated in background, it might be +1 now.
-                // Safer to rely on pendingProposalId if set.
+                // 2. Prepare Optimistic Params
+                // Read directly from form values or state since formData might not be in scope/updated
+                // 'name', 'ticker' are props/state in this scope.
+                // We need image/description. 'savedMetadata' has them!
+                let image = '', desc = '';
+                if (savedMetadata) {
+                    try {
+                        // savedMetadata is already an object, not a stringified JSON
+                        image = savedMetadata.image || '';
+                        desc = savedMetadata.description || '';
+                    } catch (e) {
+                        console.error("Error parsing savedMetadata:", e);
+                    }
+                }
 
-                // 2. Next Steps
-                // Optimistic Params for Instant Load
                 const params = new URLSearchParams()
                 params.set('newly_created', 'true')
                 params.set('mode', launchMode)
-                params.set('name', formData.name)
-                params.set('image', formData.image)
-                params.set('desc', formData.description) // Pass description for completeness
+                params.set('name', name) // 'name' state
+                params.set('image', image)
+                params.set('desc', desc)
+                params.set('id', (pendingProposalId || BigInt(0)).toString()) // Pass ID if we have it?
 
+                // 3. Show Success & Redirect
                 if (launchMode === 'incubator') {
-                    // Incubator Mode: Gas Only. No Pledge.
-                    setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 2000)
+                    // Incubator: Gas Only.
+                    setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 1000)
                 } else if (parseFloat(initialBuy) > 0 && hash) {
-                    // Instant Mode with Buy
-                    setTimeout(() => handlePledge(id), 1000)
+                    // Instant With Buy -> Go to Pledge
+                    setTimeout(() => handlePledge(pendingProposalId || BigInt(0)), 500)
                 } else {
-                    // Instant Mode without Buy
-                    setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 2000)
+                    // Instant No Buy
+                    setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 1000)
                 }
             }
             handleSuccess();
         }
-    }, [isSuccess, currentStep, pendingProposalId, launchMode, initialBuy, ticker, router, hash, proposalCount])
+    }, [isSuccess, currentStep, pendingProposalId, launchMode, initialBuy, ticker, router, hash, savedMetadata, name])
 
     // ... (rest of file)
 

@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { Elysia } from 'elysia'
 import { node } from '@elysiajs/node'
 import { cors } from '@elysiajs/cors'
-import { createPublicClient, http, parseAbiItem } from 'viem'
+import { createPublicClient, http, parseAbiItem, decodeEventLog } from 'viem'
 import { bscTestnet } from 'viem/chains'
 import { AgentManager } from './AgentManager'
 
@@ -207,6 +207,109 @@ const app = new Elysia({ adapter: node() })
     })
     .get('/api/skills', async () => {
         return agentManager.getAvailableSkills();
+    })
+    .post('/api/sync-tx', async ({ body }: { body: { txHash: string } }) => {
+        const { txHash } = body;
+        console.log(`[API] Syncing from TX Hash: ${txHash}`);
+        try {
+            // 1. Wait for TX (if not already mined) - though frontend usually calls this after confirm
+            const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+
+            // 2. Parse Logs to find 'ProposalCreated'
+            // Event Topic 0 for ProposalCreated(uint256,address,string,uint256)
+            // We can iterate and try to decode.
+            // Or just check all logs with the LAUNCHPAD ABI.
+
+            // We need to parse the logs to find the ID.
+            // Using viem's parseEventLogs would be ideal if we had the ABI handy in a format it likes, 
+            // but we can also just manually look for the event.
+            // ProposalCreated is the 2nd event in the ABI usually? 
+            // Let's use `parseLog` with the ABI item.
+
+            const proposalCreatedAbi = parseAbiItem('event ProposalCreated(uint256 indexed id, string name, string ticker, address indexed creator)');
+
+            let foundId = null;
+
+            for (const log of receipt.logs) {
+                try {
+                    // Try to parse as ProposalCreated
+                    // @ts-ignore
+                    const decoded = decodeEventLog({
+                        abi: [proposalCreatedAbi],
+                        data: log.data,
+                        topics: log.topics
+                    });
+                    if (decoded.eventName === 'ProposalCreated') {
+                        foundId = decoded.args.id;
+                        break;
+                    }
+                } catch (e) { continue; }
+            }
+
+            if (foundId == null) {
+                // Fallback: Maybe it was a 'Launched' event? (Incubator -> Live)
+                const launchedAbi = parseAbiItem('event Launched(uint256 indexed id, address tokenAddress, uint256 raisedAmount)');
+                for (const log of receipt.logs) {
+                    try {
+                        // @ts-ignore
+                        const decoded = decodeEventLog({
+                            abi: [launchedAbi],
+                            data: log.data,
+                            topics: log.topics
+                        });
+                        if (decoded.eventName === 'Launched') {
+                            foundId = decoded.args.id;
+                            break;
+                        }
+                    } catch (e) { continue; }
+                }
+            }
+
+            if (foundId != null) {
+                console.log(`[API] Found Agent ID ${foundId} in TX logs. Indexing...`);
+                // Force fetch this ID
+                // We logic from GET /api/agents/:id but we need to call it internally.
+                // Refactor: We can just hit the publicClient reading logic directly here or reuse code.
+                // Reuse the logic from GET /api/agents/:id by extracting it? 
+                // For now, I will duplicate the single-read logic for safety/speed.
+
+                const id = foundId.toString();
+                const data = await publicClient.readContract({
+                    address: LAUNCHPAD_ADDRESS,
+                    abi: [
+                        parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')
+                    ],
+                    functionName: 'proposals',
+                    args: [BigInt(id)]
+                })
+                // serialize bigints
+                const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any
+
+                // Fetch Identity
+                const identity = agentManager.getAgentIdentity(id);
+
+                const agent = {
+                    id,
+                    creator, name, ticker, metadataURI,
+                    targetAmount: targetAmount.toString(),
+                    pledgedAmount: pledgedAmount.toString(),
+                    bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
+                    createdAt: new Date(Number(createdAt) * 1000).toISOString(),
+                    launched, tokenAddress,
+                    identity,
+                    skills: [1] // Default
+                }
+
+                agentManager.registerAgent(agent);
+                return { success: true, agent };
+            }
+
+            return { success: false, error: "No ProposalCreated event found in TX" };
+
+        } catch (e) {
+            console.error("SyncTX failed", e);
+            return { success: false, error: e.toString() };
+        }
     })
     .listen(process.env.PORT || 3001)
 
