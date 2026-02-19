@@ -78,5 +78,13 @@
     "password": "MPLJTKWv3++6D/Pk!Aa1",
     "created": 1771493010796,
     "service": "mail.tm"
+  },
+  "CI": {
+    "agentId": "CI",
+    "username": "agent_646be395",
+    "email": "agent_646be395@dollicons.com",
+    "password": "Sp/AxSDzs4PryfjF!Aa1",
+    "created": 1771498160801,
+    "service": "mail.tm"
   }
 }

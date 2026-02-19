@@ -53,7 +53,7 @@ const fetchAgents = async () => {
     try {
         console.log(`[INIT] Hydrating Agent Registry...`);
         const currentBlock = await publicClient.getBlockNumber();
-        const fromBlock = currentBlock - 49000n;
+        const fromBlock = currentBlock - 250000n; // ~8.5 days historical scan
 
         // 1. Fetch Incubator Agents (Stateful - All versions)
         const vaults = [INCUBATOR_VAULT_ADDRESS, ...LEGACY_VAULTS];
@@ -109,7 +109,7 @@ const fetchAgents = async () => {
 
         // 2. Fetch Instant Launches (All versions with Chunking)
         const launchers = [INSTANT_LAUNCHER_ADDRESS, ...LEGACY_LAUNCHERS];
-        const chunkSize = 45000n;
+        const chunkSize = 5000n; // Micro-chunks for extreme RPC stability
 
         console.log(`[INIT] Scanning for Instant Launches (Range: ${fromBlock.toString()} to ${currentBlock.toString()})...`);
 
@@ -119,28 +119,32 @@ const fetchAgents = async () => {
                 while (currentFrom < currentBlock) {
                     const currentTo = currentFrom + chunkSize > currentBlock ? currentBlock : currentFrom + chunkSize;
 
-                    // A. New signature
-                    const logs = await publicClient.getLogs({
-                        address: launcher,
-                        event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
-                        fromBlock: currentFrom,
-                        toBlock: currentTo
-                    })
-                    for (const log of logs) {
-                        const { tokenAddress, creator, name, ticker, metadataURI, raisedAmount } = (log as any).args;
-                        registerLegacyAgent(tokenAddress, { name, ticker, creator, metadataURI, raisedAmount, origin: 'instant' });
-                    }
+                    try {
+                        // A. New signature
+                        const logs = await publicClient.getLogs({
+                            address: launcher,
+                            event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
+                            fromBlock: currentFrom,
+                            toBlock: currentTo
+                        })
+                        for (const log of logs) {
+                            const { tokenAddress, creator, name, ticker, metadataURI, raisedAmount } = (log as any).args;
+                            registerLegacyAgent(tokenAddress, { name, ticker, creator, metadataURI, raisedAmount, origin: 'instant' });
+                        }
 
-                    // B. Legacy signature
-                    const legacyLogs = await publicClient.getLogs({
-                        address: launcher,
-                        event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
-                        fromBlock: currentFrom,
-                        toBlock: currentTo
-                    })
-                    for (const log of legacyLogs) {
-                        const { tokenAddress, creator, ticker, raisedAmount } = (log as any).args;
-                        registerLegacyAgent(tokenAddress, { ticker, creator, raisedAmount, origin: 'legacy-instant' });
+                        // B. Legacy signature
+                        const legacyLogs = await publicClient.getLogs({
+                            address: launcher,
+                            event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
+                            fromBlock: currentFrom,
+                            toBlock: currentTo
+                        })
+                        for (const log of legacyLogs) {
+                            const { tokenAddress, creator, ticker, raisedAmount } = (log as any).args;
+                            registerLegacyAgent(tokenAddress, { ticker, creator, raisedAmount, origin: 'legacy-instant' });
+                        }
+                    } catch (chunkErr) {
+                        console.warn(`[INIT] Skip failed chunk ${currentFrom}-${currentTo} for ${launcher}:`, chunkErr);
                     }
 
                     currentFrom = currentTo + 1n;

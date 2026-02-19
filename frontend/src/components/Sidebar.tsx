@@ -14,6 +14,7 @@ function cn(...inputs: ClassValue[]) {
 
 const NAV_ITEMS = [
     { name: 'Live Feed', href: '/', icon: Activity },
+    { name: 'Live Agents', href: '/live-agents', icon: Rocket },
     { name: 'Incubator', href: '/incubator', icon: Egg },
     { name: 'Profile', href: '/profile', icon: User },
 ]
