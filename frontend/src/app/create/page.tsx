@@ -731,18 +731,18 @@ function CreateAgentContent() {
                             </div>
 
                             <h2 className="text-2xl font-bold text-white mb-2">
-                                {writeError ? 'Launch Failed' :
-                                    isPending ? 'Confirm in Wallet...' :
-                                        isConfirming ? 'Deploying to Lattice...' :
-                                            isRegistering ? 'Syncing to Neural Net...' :
-                                                isSuccess ? 'Launch Successful!' :
+                                {writeError ? 'Operation Failed' :
+                                    isPending ? (launchMode === 'incubator' ? 'Sign Genesis Permit...' : 'Confirm Launch...') :
+                                        isConfirming ? (launchMode === 'incubator' ? 'Constructing Incubator...' : 'Deploying to Lattice...') :
+                                            isRegistering ? (launchMode === 'incubator' ? 'Indexing Metadata...' : 'Syncing to Neural Net...') :
+                                                isSuccess ? (launchMode === 'incubator' ? 'Incubation Active!' : 'Launch Successful!') :
                                                     'Initializing...'}
                             </h2>
                             <p className="text-text-dim font-mono text-sm max-w-xs">
                                 {writeError ? (writeError.message.includes('User rejected') ? 'Transaction rejected.' : writeError.message) :
-                                    isRegistering ? 'Registering agent with TEE Enclave...' :
-                                        isSuccess ? (pendingProposalId ? 'Finalizing initial pledge transaction...' : 'Initializing TEE Handshake...') :
-                                            'Please confirm the transaction in your wallet.'}
+                                    isRegistering ? (launchMode === 'incubator' ? 'Verifying Manifest...' : 'Registering agent with TEE Enclave...') :
+                                        isSuccess ? (pendingProposalId ? 'Finalizing setup...' : 'Redirecting...') :
+                                            (launchMode === 'incubator' ? 'Confirm to create Genesis Pool.' : 'Please confirm the transaction in your wallet.')}
                             </p>
 
                             {writeError && (
