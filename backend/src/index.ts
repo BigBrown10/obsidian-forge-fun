@@ -53,7 +53,7 @@ const fetchAgents = async () => {
     try {
         console.log(`[INIT] Hydrating Agent Registry...`);
         const currentBlock = await publicClient.getBlockNumber();
-        const fromBlock = currentBlock - 100000n; // ~3.5 days historical scan
+        const fromBlock = currentBlock - 300000n; // ~10 days historical scan
 
         // 1. Fetch Incubator Agents (Stateful - All versions)
         const vaults = [INCUBATOR_VAULT_ADDRESS, ...LEGACY_VAULTS];
@@ -102,12 +102,13 @@ const fetchAgents = async () => {
 
         for (const launcher of launchers) {
             try {
-                let currentFrom = fromBlock;
-                while (currentFrom < currentBlock) {
-                    const currentTo = currentFrom + chunkSize > currentBlock ? currentBlock : currentFrom + chunkSize;
+                // Apple-standard "LIFO" Logic: Scan from current to past
+                let currentTo = currentBlock;
+                while (currentTo > fromBlock) {
+                    const currentFrom = currentTo - chunkSize < fromBlock ? fromBlock : currentTo - chunkSize;
 
                     let retryCount = 0;
-                    const maxRetries = 3;
+                    const maxRetries = 5;
                     let logs: any[] = [];
                     let legacyLogs: any[] = [];
                     let success = false;
@@ -119,19 +120,19 @@ const fetchAgents = async () => {
                                 event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
                                 fromBlock: currentFrom,
                                 toBlock: currentTo
-                            })
+                            });
 
                             legacyLogs = await publicClient.getLogs({
                                 address: launcher as `0x${string}`,
                                 event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
                                 fromBlock: currentFrom,
                                 toBlock: currentTo
-                            })
+                            });
                             success = true;
                         } catch (chunkErr) {
                             retryCount++;
                             console.warn(`[INIT] Retry ${retryCount}/${maxRetries} for chunk ${currentFrom}-${currentTo} on ${launcher}`);
-                            if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 1000 * retryCount));
+                            if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 5000));
                         }
                     }
 
@@ -147,7 +148,7 @@ const fetchAgents = async () => {
                     } else {
                         console.error(`[INIT] FATAL: Failed chunk ${currentFrom}-${currentTo} after ${maxRetries} retries.`);
                     }
-                    currentFrom = currentTo + 1n;
+                    currentTo = currentFrom - 1n; // Move backwards
                 }
             } catch (err) {
                 console.warn(`[INIT] Failed scanning launcher ${launcher}:`, err);
@@ -293,7 +294,10 @@ const app = new Elysia({ adapter: node() })
             return { success: false, error: e.toString() };
         }
     })
-    .listen(process.env.PORT || 3001)
+    .listen({
+        port: process.env.PORT || 3001,
+        hostname: '0.0.0.0'
+    })
 
 console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`)
 

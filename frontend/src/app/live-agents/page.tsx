@@ -47,14 +47,25 @@ export default function LiveAgentsPage() {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
     return (
-        <div className="min-h-screen bg-base text-text-primary p-6 lg:p-12 space-y-8">
-            <header className="flex flex-col gap-2 relative">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-accent/20">
-                            <Rocket className="w-6 h-6 text-accent" />
+        <div className="min-h-screen bg-[#050505] text-text-primary p-6 lg:p-12 space-y-10 relative overflow-hidden">
+            {/* Background Aesthetic */}
+            <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-accent/5 rounded-full blur-[120px] -z-10" />
+            <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-success/5 rounded-full blur-[100px] -z-10" />
+
+            <header className="flex flex-col gap-4 relative z-10">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-md shadow-2xl">
+                            <Rocket className="w-7 h-7 text-accent" />
                         </div>
-                        <h1 className="text-3xl font-bold tracking-tight text-white">Live Agents</h1>
+                        <div>
+                            <h1 className="text-4xl font-extrabold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                                Live Agents
+                            </h1>
+                            <p className="text-text-dim text-sm mt-1 font-medium">
+                                Obsidian Network • Real-time Operations
+                            </p>
+                        </div>
                     </div>
                     <button
                         onClick={async () => {
@@ -68,56 +79,66 @@ export default function LiveAgentsPage() {
                             }
                         }}
                         disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
+                        className="group flex items-center gap-3 px-6 py-2.5 rounded-full bg-white text-black hover:bg-white/90 transition-all duration-300 disabled:opacity-50 font-bold text-sm shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-[1.02] active:scale-[0.98]"
                     >
                         <Activity className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        <span className="text-sm font-medium">Sync Deep Scan</span>
+                        <span>Sync Deep Scan</span>
                     </button>
                 </div>
-                <p className="text-text-dim max-w-2xl">
-                    Real-time feed of all agents currently active and trading on the network.
-                    Use the Launchpad to add your own agent to this list.
-                </p>
             </header>
 
-            <section className="bg-surface/50 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-                <div className="p-6 border-b border-white/5 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-success animate-pulse" />
-                        <span className="text-sm font-medium text-white">Live Operations</span>
+            <section className="bg-white/[0.02] border border-white/10 rounded-[32px] overflow-hidden backdrop-blur-xl shadow-2xl relative z-10">
+                <div className="p-8 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-white/[0.02] to-transparent">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-success animate-ping" />
+                        <span className="text-sm font-semibold text-white tracking-wide uppercase">Operational Hub</span>
                     </div>
-                    <span className="text-xs text-text-dim px-2 py-1 rounded bg-white/5 border border-white/10 uppercase font-mono">
-                        {liveAgents.length} Agents Online
-                    </span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                        <span className="text-[10px] text-white/80 uppercase font-black tracking-widest">
+                            {liveAgents.length} Agents Active
+                        </span>
+                    </div>
                 </div>
 
                 {loading ? (
-                    <div className="p-20 text-center animate-pulse text-text-dim">
-                        Connecting to Obsidian Core...
+                    <div className="p-32 text-center flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                        <p className="text-text-dim font-medium tracking-wide animate-pulse uppercase text-xs">Synchronizing with Blockchain...</p>
                     </div>
                 ) : liveAgents.length > 0 ? (
                     <div className="flex flex-col">
-                        <div className="grid grid-cols-12 gap-4 px-6 py-3 text-[10px] text-text-dim uppercase tracking-wider font-bold border-b border-white/5 bg-white/5">
-                            <div className="col-span-4">Identity</div>
-                            <div className="col-span-2 hidden sm:block">Status</div>
-                            <div className="col-span-2 hidden sm:block">Market Cap</div>
-                            <div className="col-span-2 hidden sm:block">24h Vol</div>
+                        <div className="grid grid-cols-12 gap-4 px-8 py-4 text-[10px] text-white/40 uppercase tracking-[0.2em] font-black border-b border-white/5 bg-white/[0.01]">
+                            <div className="col-span-4">Agent Identity</div>
+                            <div className="col-span-2 hidden sm:block">Deployment Status</div>
+                            <div className="col-span-2 hidden sm:block">Market Valuation</div>
+                            <div className="col-span-2 hidden sm:block">24h Throughput</div>
                             <div className="col-span-2 text-right pr-4">Action</div>
                         </div>
-                        {liveAgents.map(agent => (
-                            <TokenRow key={agent.id} agent={agent} />
-                        ))}
+                        <div className="divide-y divide-white/[0.03]">
+                            {liveAgents.map(agent => (
+                                <TokenRow key={agent.id} agent={agent} />
+                            ))}
+                        </div>
                     </div>
                 ) : (
-                    <div className="p-20 text-center space-y-4">
-                        <div className="inline-flex p-4 rounded-full bg-white/5 mb-4">
-                            <Info className="w-8 h-8 text-text-dim" />
+                    <div className="p-32 text-center flex flex-col items-center space-y-6">
+                        <div className="inline-flex p-6 rounded-[24px] bg-white/[0.03] border border-white/10 mb-2">
+                            <Info className="w-10 h-10 text-white/20" />
                         </div>
-                        <p className="text-lg text-white font-medium">No live agents detected</p>
-                        <p className="text-text-dim max-w-sm mx-auto">
-                            We couldn't find any tokens launched in the last 48 hours.
-                            Newly created agents will appear here automatically.
-                        </p>
+                        <div className="space-y-2">
+                            <h3 className="text-2xl font-bold text-white">No Agents in Range</h3>
+                            <p className="text-text-dim max-w-sm mx-auto leading-relaxed">
+                                Our scanners found no active deployments within the specified block range.
+                                Newly launched agents will manifest here in real-time.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => window.location.href = '/launch'}
+                            className="px-8 py-3 rounded-full bg-accent text-white font-bold hover:brightness-110 transition-all shadow-lg shadow-accent/20"
+                        >
+                            Launch First Agent
+                        </button>
                     </div>
                 )}
             </section>
