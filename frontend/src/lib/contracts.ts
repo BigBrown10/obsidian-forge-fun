@@ -1,6 +1,6 @@
 // Contract addresses — update after deployment
-export const INSTANT_LAUNCHER_ADDRESS = '0x56c9caA37773055d2e5cFA2814af5B738D70c5D6' as const
-export const INCUBATOR_VAULT_ADDRESS = '0xCf7C1caCd2900947006306fAbCb3658e236222D6' as const
+export const INSTANT_LAUNCHER_ADDRESS = '0x849D1B9A3E4f63525cc592935d8F0af6fEb406A6'
+export const INCUBATOR_VAULT_ADDRESS = '0x1c22090f25A3c4285Dd58bd020Ee5e0a9782157f' as const
 
 // Legacy alias for backward compatibility until refactor complete
 export const LAUNCHPAD_ADDRESS = INCUBATOR_VAULT_ADDRESS

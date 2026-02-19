@@ -6,8 +6,8 @@ import { createPublicClient, http, parseAbiItem, decodeEventLog } from 'viem'
 import { bscTestnet } from 'viem/chains'
 import { AgentManager } from './AgentManager'
 
-const INSTANT_LAUNCHER_ADDRESS = '0x56c9caA37773055d2e5cFA2814af5B738D70c5D6'
-const INCUBATOR_VAULT_ADDRESS = '0xCf7C1caCd2900947006306fAbCb3658e236222D6'
+const INSTANT_LAUNCHER_ADDRESS = '0x849D1B9A3E4f63525cc592935d8F0af6fEb406A6'
+const INCUBATOR_VAULT_ADDRESS = '0x1c22090f25A3c4285Dd58bd020Ee5e0a9782157f'
 const AGENT_SKILL_REGISTRY_ADDRESS = '0x7831569341a8aa0288917D5F93Aa5DF97aa532bE'
 const RPC_URL = 'https://bsc-testnet.publicnode.com'
 
@@ -68,19 +68,19 @@ const fetchAgents = async () => {
         // 2. Fetch Instant Agents (Event-driven)
         const instantLogs = await publicClient.getLogs({
             address: INSTANT_LAUNCHER_ADDRESS,
-            event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
+            event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
             fromBlock: 'earliest'
         })
 
         for (const log of instantLogs) {
-            const { tokenAddress, creator, ticker, raisedAmount } = (log as any).args;
+            const { tokenAddress, creator, name, ticker, metadataURI, raisedAmount } = (log as any).args;
             if (!agentManager.activeAgents.has(tokenAddress)) {
                 agentManager.registerAgent({
                     id: tokenAddress,
-                    name: ticker,
+                    name,
                     ticker,
                     creator,
-                    metadataURI: '{}',
+                    metadataURI,
                     targetAmount: '0',
                     pledgedAmount: raisedAmount.toString(),
                     bondingProgress: 100,
@@ -157,14 +157,14 @@ const app = new Elysia({ adapter: node() })
             const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
 
             // Detect Instant Launch
-            const instantLaunchAbi = parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)');
+            const instantLaunchAbi = parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)');
             for (const log of receipt.logs) {
                 try {
                     const decoded = decodeEventLog({ abi: [instantLaunchAbi as any], data: log.data, topics: log.topics }) as any;
                     if (decoded.eventName === 'InstantLaunch') {
-                        const { tokenAddress, creator, ticker, raisedAmount } = decoded.args;
+                        const { tokenAddress, creator, name, ticker, metadataURI, raisedAmount } = decoded.args;
                         const agent = {
-                            id: tokenAddress, name: ticker, ticker, creator, metadataURI: '{}',
+                            id: tokenAddress, name, ticker, creator, metadataURI,
                             targetAmount: '0', pledgedAmount: raisedAmount.toString(),
                             bondingProgress: 100, launched: true, tokenAddress,
                             createdAt: new Date().toISOString(), service_origin: 'instant'
@@ -216,7 +216,7 @@ publicClient.watchContractEvent({
     abi: [
         parseAbiItem('event Launched(uint256 indexed id, address tokenAddress, uint256 raisedAmount)'),
         parseAbiItem('event ProposalCreated(uint256 indexed id, string name, string ticker, address indexed creator)'),
-        parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)')
+        parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)')
     ],
     onLogs: () => fetchAgents()
 });

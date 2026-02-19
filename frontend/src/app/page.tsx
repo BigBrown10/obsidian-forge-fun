@@ -33,7 +33,7 @@ export default function Dashboard() {
     // Double check metadata to ensure we don't accidentally show a "launched" incubator if that's even possible (it shouldn't be until TGE)
     // But for now, launched = true is the source of truth for "Live Trading".
     return true;
-  }).sort((a, b) => Number(b.id) - Number(a.id))
+  }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   return (
     <div className="min-h-screen bg-base text-text-primary p-6 space-y-12">

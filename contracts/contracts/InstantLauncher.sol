@@ -17,7 +17,7 @@ contract InstantLauncher is Ownable, ReentrancyGuard {
     
     uint256 public constant PLATFORM_FEE_PERCENT = 5; 
 
-    event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount);
+    event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount);
 
     constructor(address _teeAddress, address _routerAddress) Ownable(msg.sender) {
         teeAddress = _teeAddress;
@@ -49,7 +49,7 @@ contract InstantLauncher is Ownable, ReentrancyGuard {
             address(0xdead), 
             block.timestamp + 300
         ) {
-            emit InstantLaunch(address(newToken), msg.sender, _ticker, msg.value);
+            emit InstantLaunch(address(newToken), msg.sender, _name, _ticker, _metadataURI, msg.value);
         } catch {
             newToken.transfer(msg.sender, totalSupply);
             payable(msg.sender).transfer(liquidityBNB);
