@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain, useReadContract } from 'wagmi'
 import { parseEther } from 'viem'
 import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI } from '../../lib/contracts'
@@ -85,7 +85,7 @@ const AGENT_PRESETS = [
     },
 ] as const;
 
-export default function CreateAgent() {
+function CreateAgentContent() {
     const router = useRouter()
     // --- State ---
     const [name, setName] = useState('')
@@ -150,72 +150,98 @@ export default function CreateAgent() {
         }
     }, [agentType])
 
-    // Handle Transaction Success
+    // Optimistic Registration (Trigger immediately on Hash)
+    useEffect(() => {
+        if (hash && currentStep === 'launching' && !pendingProposalId && proposalCount) {
+            const handleOptimistic = async () => {
+                // Prevent double-fire if we already have an ID or are registering
+                if (isRegistering) return;
+
+                // Predict ID
+                const id = proposalCount; // proposalCount IS the next ID (0-indexed length? Wait, solidity length is next ID? Standard count is length. Array index is 0..count-1. Next ID is count.)
+                // Actually, if we look at previous logic: `const id = proposalCount - BigInt(1)` was used for success.
+                // Wait, if proposalCount is total count BEFORE tx, then next ID is proposalCount.
+                // If proposalCount is total count AFTER tx (which it is in success block), then ID is count-1.
+                // We are reading `proposalCount` from the hook. It updates every 2s. 
+                // At this moment (hash exists, but not mined), proposalCount is likely the OLD count. 
+                // So the NEW agent will have ID = proposalCount.
+
+                // Let's verify standard solidity: proposals.push() -> length increases. ID is typically index.
+                // If length is 5 (ids 0-4), next is 5.
+                // So id = proposalCount.
+
+                const predictedId = proposalCount;
+
+                console.log("🚀 Optimistic Registering Agent (Predicted ID):", predictedId.toString());
+                setIsRegistering(true);
+
+                try {
+                    const agentData = {
+                        id: predictedId.toString(),
+                        name,
+                        ticker,
+                        creator: address,
+                        metadataURI: savedMetadata ? JSON.stringify(savedMetadata) : "{}",
+                        targetAmount: parseEther(target).toString(),
+                        pledgedAmount: parseEther(initialBuy).toString(),
+                        bondingProgress: 0,
+                        launched: launchMode === 'instant',
+                        skills: AGENT_PRESETS.find(p => p.id === agentType)?.skills || [1],
+                    };
+
+                    await fetch('/api/agents/manual-register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(agentData)
+                    });
+
+                    // Force Sync immediately
+                    fetch('/api/sync-registry', { method: 'POST' }).catch(e => console.error(e));
+
+                    console.log("✅ Optimistic Registration Complete");
+                    setPendingProposalId(predictedId); // Store it so we don't re-register
+                } catch (e) {
+                    console.error("Optimistic Register Failed:", e);
+                } finally {
+                    setIsRegistering(false)
+                }
+            }
+            handleOptimistic();
+        }
+    }, [hash, currentStep, proposalCount, isRegistering, savedMetadata, address, name, ticker, target, initialBuy, launchMode, agentType])
+
+    // Handle Transaction Success (Confirmation)
     useEffect(() => {
         if (isSuccess && currentStep === 'launching') {
             const handleSuccess = async () => {
-                if (!pendingProposalId && proposalCount) {
-                    // Step 1 Success: Proposal Created
-                    const id = proposalCount - BigInt(1)
-                    setPendingProposalId(id)
-                    console.log("Proposal Created with ID:", id)
+                console.log("✅ Transaction Confirmed!");
 
-                    // 1. Optimistic Register (Await this!)
-                    setIsRegistering(true)
-                    try {
-                        console.log("🚀 Optimistic Registering Agent:", id.toString());
-                        const agentData = {
-                            id: id.toString(),
-                            name,
-                            ticker,
-                            creator: address,
-                            metadataURI: savedMetadata ? JSON.stringify(savedMetadata) : "{}",
-                            targetAmount: parseEther(target).toString(),
-                            pledgedAmount: parseEther(initialBuy).toString(),
-                            bondingProgress: 0,
-                            launched: launchMode === 'instant',
-                            skills: AGENT_PRESETS.find(p => p.id === agentType)?.skills || [1],
-                        };
+                // If we somehow missed the optimistic step (e.g. proposalCount wasn't ready), try again?
+                // Or just rely on the backend poll now.
+                // But we should route the user.
 
-                        await fetch('/api/agents/manual-register', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(agentData)
-                        });
-                        console.log("✅ Optimistic Registration Complete");
-                        // Wait a tiny bit more for "Scanning" effect
-                        await new Promise(r => setTimeout(r, 800));
-                    } catch (e) {
-                        console.error("Optimistic Register Failed (Proceeding anyway):", e);
-                    } finally {
-                        setIsRegistering(false)
-                    }
+                const id = pendingProposalId || (proposalCount ? proposalCount - BigInt(1) : BigInt(0));
+                // Note: If proposalCount updated in background, it might be +1 now.
+                // Safer to rely on pendingProposalId if set.
 
-                    // 1.5 Force Backend Sync (Reduce "20 min" wait)
-                    try {
-                        await fetch('http://localhost:3001/api/sync-registry', { method: 'POST' }); // Try localhost for speed in dev
-                        await fetch('/api/sync-registry', { method: 'POST' }); // Try proxy
-                    } catch (e) { console.error("Sync Trigger Failed", e) }
-
-                    // 2. Next Steps
-                    if (launchMode === 'incubator') {
-                        // Incubator Mode: Gas Only. No Pledge.
-                        setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 500)
-                    } else if (parseFloat(initialBuy) > 0) {
-                        // Instant Mode with Buy
-                        setTimeout(() => handlePledge(id), 500)
-                    } else {
-                        // Instant Mode without Buy
-                        setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 500)
-                    }
-                } else if (pendingProposalId && !isRegistering) {
-                    // Step 2 Success: Pledge Complete (Only for Instant Mode)
-                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 1000)
+                // 2. Next Steps
+                if (launchMode === 'incubator') {
+                    // Incubator Mode: Gas Only. No Pledge.
+                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 500)
+                } else if (parseFloat(initialBuy) > 0 && hash) {
+                    // Instant Mode with Buy
+                    // We need to wait for the buy tx now? 
+                    // The logic for 'handlePledge' uses `initialBuy`. 
+                    // If we are here, the PROPOSAL is created.
+                    setTimeout(() => handlePledge(id), 500)
+                } else {
+                    // Instant Mode without Buy
+                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 500)
                 }
             }
             handleSuccess();
         }
-    }, [isSuccess, currentStep, proposalCount, pendingProposalId, initialBuy, ticker, router, savedMetadata, address, name, target, launchMode, agentType])
+    }, [isSuccess, currentStep, pendingProposalId, launchMode, initialBuy, ticker, router, hash, proposalCount])
 
     // ... (rest of file)
 
@@ -741,5 +767,13 @@ function ButtonBack({ onClick }: { onClick: () => void }) {
         <button onClick={onClick} className="text-xs text-text-dim hover:text-white flex items-center gap-1 transition-colors">
             ← Back
         </button>
+    )
+}
+
+export default function CreateAgent() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-accent"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
+            <CreateAgentContent />
+        </Suspense>
     )
 }
