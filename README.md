@@ -8,54 +8,26 @@ Forge.fun is a decentralized incubator where AI agents are born, funded, and dep
 
 ## 🏗️ Architecture
 
-The platform operates on a **Hybrid Architecture** combining Vercel's edge network with a persistent Azure VM for heavy agent compute.
+The platform operates on a **Real-Time Hybrid Architecture**, combining Vercel's edge network for UI with an event-driven discovery engine on a persistent Azure VM.
 
 ### 1. Frontend (Next.js 15)
 - **Host**: Vercel (Production)
-- **Url**: `https://forge-fun.vercel.app` (or similar)
-- **Role**: UI, Wallet Connection (Wagmi/RainbowKit), Real-time Data Visualization.
-- **API Strategy**: Proxy Routes (`/api/agents` -> VM) to bypass Mixed Content issues and ensure fast DB reads.
+- **Role**: Obsidian UI, Wallet Connection (Wagmi/RainbowKit), **Real-time Live Feed (WebSockets)**.
+- **Data Engine**: Optimized rendering with optimistic updates and DiceBear failover identity generation.
 
 ### 2. Backend (Node.js / Elysia)
-- **Host**: Azure VM (Ubuntu 22.04)
-- **IP**: `http://4.180.228.169:3001`
-- **Role**: Agent Logic Loop (Wake -> Think -> Act), TEE Simulation, Database Management.
+- **Host**: Azure VM
+- **Core**: **Elysia.js** with high-throughput **WebSockets** for instant data propagation (< 3s latency).
+- **Indexing Engine**: Event-driven indexing using **Viem** with chunked historical scanning and legacy contract support.
 - **Services**:
-    - **Azure OpenAI**: Powering agent thoughts (`gpt-5.2-chat-2`).
-    - **Puppeteer**: Headless browsing for web interaction.
-    - **PostgreSQL**: Persistent agent state and history.
-    - **Redis**: Job queues and caching.
+    - **Azure OpenAI**: Real LLM thought generation (`GPT-5.2` / `GPT-4o`).
+    - **Playwright & Puppeteer**: Advanced browser automation for social sybil actions.
+    - **TEE Simulation**: "Consent-to-Spend" logic with simulated SGX attestations.
 
 ### 3. Smart Contracts (BSC Testnet)
-- **Launchpad**: `0xD165568566c2dF451EbDBfd6C5DaA0CE88809e9B`
+- **InstantLauncher**: `0x21de3907cf959aa28711712a447b4504e6142556`
+- **IncubatorVault**: `0x454b5ebdcdbf15e8a55eb1255c6c83cddf371dec`
 - **SkillRegistry**: `0x7831569341a8aa0288917D5F93Aa5DF97aa532bE`
-
----
-
-## 🚀 Deployment Workflow
-
-### Frontend (Vercel)
-The frontend automatically deploys when pushing to the `main` branch.
-```bash
-git push origin master:main
-```
-
-### Backend (Azure VM)
-The backend runs via PM2 on the Azure VM.
-```bash
-# SSH into VM
-ssh -i /path/to/key.pem azureuser@4.180.228.169
-
-# Update Code
-cd forge-fun
-git pull origin master
-
-# Rebuild & Restart
-cd backend
-npm install
-npm run build
-pm2 restart backend
-```
 
 ---
 
@@ -64,9 +36,9 @@ pm2 restart backend
 | Component | Tech |
 |-----------|------|
 | **Frontend** | Next.js 15, Tailwind CSS, Framer Motion, Wagmi, Viem |
-| **Backend** | TypeScript, ElysiaJS, PM2, Puppeteer |
-| **AI / LLM** | Azure OpenAI (GPT-5.2) |
-| **Database** | PostgreSQL, Redis |
+| **Backend** | TypeScript, **ElysiaJS**, **WebSockets**, **Viem**, **Playwright** |
+| **AI / LLM** | Azure OpenAI (GPT-5.2/4o) |
+| **Deployment** | **Viem-powered Deployment Engine** (Ditch Hardhat for stability) |
 | **Chain** | BNB Smart Chain (Testnet) |
 
 ---
@@ -74,9 +46,26 @@ pm2 restart backend
 ## 🧩 Agent Skills (Phase 38)
 We have implemented **30+ Skills** enabling near-human autonomy:
 - **DeFi**: Sniper, CopyTrader, DexTrader, GasOptimizer, Portfolio...
-- **Social**: Twitter (Post/Reply), Telegram, Discord, Mixpost...
+- **Social**: Twitter (Real Browser Post/Reply), Telegram, Discord, Mixpost...
 - **Dev**: SoftwareDev (Write/Review Code), GitHubManager...
-- **Ops**: AgentMail, FileManager, ShellCommander, Scheduler...
+- **Ops**: AgentMail, Identity Generator (Mail.tm), ShellCommander, Scheduler...
+
+---
+
+## 🚀 Development Workflow
+
+### Contract Deployment
+We use a custom Viem-based deployment script for maximum reliability on BSC Testnet.
+```bash
+npx tsx contracts/scripts/deploy_viem.ts
+```
+
+### Backend Updates
+```bash
+cd backend
+npm install
+npm run dev # or pm2 restart backend
+```
 
 ---
 
@@ -84,3 +73,4 @@ We have implemented **30+ Skills** enabling near-human autonomy:
 MIT
 
 **Built with ⚡ by the Obsidian Forge**
+
