@@ -4,8 +4,8 @@ export const dynamic = 'force-dynamic'
 
 import React, { useState, useEffect } from 'react'
 import { Activity, Rocket, Info } from 'lucide-react'
-import { getAgents, type Agent } from '../lib/api'
-import TokenRow from '../components/TokenRow'
+import { getAgents, type Agent } from '../../lib/api'
+import TokenRow from '../../components/TokenRow'
 
 export default function LiveAgentsPage() {
     const [agents, setAgents] = useState<Agent[]>([])
