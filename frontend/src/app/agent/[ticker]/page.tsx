@@ -11,7 +11,7 @@ import { getAgentByTicker, type Agent } from '../../../lib/api'
 import { formatMarketCap } from '../../../data/mock'
 import ManageAgent from './manage'
 import AgentActivityLog from '../../../components/AgentActivityLog'
-import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap, Users, Rocket, Lock, Shield, BarChart3, MessageSquare, Globe, MessageCircle, CheckCircle2 } from 'lucide-react'
+import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap, Users, Rocket, Lock, Shield, BarChart3, MessageSquare, Globe, MessageCircle, CheckCircle2, Egg } from 'lucide-react'
 import { formatCompactNumber } from '../../../lib/formatting'
 import AgentBootSequence from '../../../components/AgentBootSequence'
 
