@@ -8,6 +8,7 @@
     "dependencies": {
         "@elysiajs/cors": "latest",
         "@elysiajs/node": "latest",
+        "@elysiajs/websocket": "^0.2.8",
         "@types/node": "latest",
         "axios": "^1.13.5",
         "elysia": "latest",

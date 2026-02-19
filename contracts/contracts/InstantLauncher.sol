@@ -41,19 +41,16 @@ contract InstantLauncher is Ownable, ReentrancyGuard {
         // 4. Add Liquidity
         newToken.approve(address(uniswapRouter), totalSupply);
         
-        try uniswapRouter.addLiquidityETH{value: liquidityBNB}(
+        uniswapRouter.addLiquidityETH{value: liquidityBNB}(
             address(newToken),
             totalSupply,
             0,
             0,
             address(0xdead), 
             block.timestamp + 300
-        ) {
-            emit InstantLaunch(address(newToken), msg.sender, _name, _ticker, _metadataURI, msg.value);
-        } catch {
-            newToken.transfer(msg.sender, totalSupply);
-            payable(msg.sender).transfer(liquidityBNB);
-        }
+        );
+
+        emit InstantLaunch(address(newToken), msg.sender, _name, _ticker, _metadataURI, msg.value);
 
         payable(owner()).transfer(platformFee);
     }

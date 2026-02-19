@@ -1,6 +1,6 @@
 // Contract addresses — update after deployment
-export const INSTANT_LAUNCHER_ADDRESS = '0x849D1B9A3E4f63525cc592935d8F0af6fEb406A6'
-export const INCUBATOR_VAULT_ADDRESS = '0x1c22090f25A3c4285Dd58bd020Ee5e0a9782157f' as const
+export const INSTANT_LAUNCHER_ADDRESS = '0x21de3907cf959aa28711712a447b4504e6142556'
+export const INCUBATOR_VAULT_ADDRESS = '0x454b5ebdcdbf15e8a55eb1255c6c83cddf371dec' as const
 
 // Legacy alias for backward compatibility until refactor complete
 export const LAUNCHPAD_ADDRESS = INCUBATOR_VAULT_ADDRESS
@@ -118,7 +118,9 @@ export const INSTANT_LAUNCHER_ABI = [
         inputs: [
             { indexed: true, name: 'tokenAddress', type: 'address' },
             { indexed: true, name: 'creator', type: 'address' },
+            { indexed: false, name: 'name', type: 'string' },
             { indexed: false, name: 'ticker', type: 'string' },
+            { indexed: false, name: 'metadataURI', type: 'string' },
             { indexed: false, name: 'raisedAmount', type: 'uint256' },
         ],
         name: 'InstantLaunch',

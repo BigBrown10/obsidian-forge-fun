@@ -7,10 +7,13 @@ import { createPublicClient, http, parseAbiItem, decodeEventLog } from 'viem'
 import { bscTestnet } from 'viem/chains'
 import { AgentManager } from './AgentManager'
 
-const INSTANT_LAUNCHER_ADDRESS = '0x849D1B9A3E4f63525cc592935d8F0af6fEb406A6'
-const INCUBATOR_VAULT_ADDRESS = '0x1c22090f25A3c4285Dd58bd020Ee5e0a9782157f'
-const AGENT_SKILL_REGISTRY_ADDRESS = '0x7831569341a8aa0288917D5F93Aa5DF97aa532bE'
-const RPC_URL = 'https://bsc-testnet.publicnode.com'
+const INSTANT_LAUNCHER_ADDRESS = process.env.INSTANT_LAUNCHER_ADDRESS as `0x${string}`
+const INCUBATOR_VAULT_ADDRESS = process.env.INCUBATOR_VAULT_ADDRESS as `0x${string}`
+const AGENT_SKILL_REGISTRY_ADDRESS = process.env.AGENT_SKILL_REGISTRY_ADDRESS as `0x${string}`
+const RPC_URL = process.env.RPC_URL || 'https://bsc-testnet.publicnode.com'
+
+const LEGACY_LAUNCHERS = (process.env.LEGACY_LAUNCHERS || '').split(',').filter(Boolean) as `0x${string}`[]
+const LEGACY_VAULTS = (process.env.LEGACY_VAULTS || '').split(',').filter(Boolean) as `0x${string}`[]
 
 // --- Viem Client ---
 const publicClient = createPublicClient({
@@ -20,79 +23,133 @@ const publicClient = createPublicClient({
 
 const agentManager = new AgentManager();
 
+// --- Registry Helpers ---
+const registerLegacyAgent = (tokenAddress: string, data: any) => {
+    if (agentManager.activeAgents.has(tokenAddress)) return;
+
+    agentManager.registerAgent({
+        id: tokenAddress,
+        name: data.name || data.ticker || "Legacy Agent",
+        ticker: data.ticker || "LEGACY",
+        creator: data.creator,
+        metadataURI: data.metadataURI || JSON.stringify({
+            name: data.name || data.ticker,
+            ticker: data.ticker,
+            image: `https://api.dicebear.com/7.x/identicon/svg?seed=${data.ticker || tokenAddress}`
+        }),
+        targetAmount: '0',
+        pledgedAmount: data.raisedAmount?.toString() || '0',
+        bondingProgress: 100,
+        launched: true,
+        tokenAddress,
+        createdAt: Math.floor(Date.now() / 1000),
+        skills: [1],
+        service_origin: data.origin || 'legacy-instant'
+    });
+};
+
 // --- Startup Hydration ---
 const fetchAgents = async () => {
     try {
         console.log(`[INIT] Hydrating Agent Registry...`);
+        const currentBlock = await publicClient.getBlockNumber();
+        const fromBlock = currentBlock - 49000n;
 
-        // 1. Fetch Incubator Agents (Stateful)
-        const incubatorCount = await publicClient.readContract({
-            address: INCUBATOR_VAULT_ADDRESS,
-            abi: [parseAbiItem('function proposalCount() view returns (uint256)')],
-            functionName: 'proposalCount'
-        }) as bigint
+        // 1. Fetch Incubator Agents (Stateful - All versions)
+        const vaults = [INCUBATOR_VAULT_ADDRESS, ...LEGACY_VAULTS];
+        console.log(`[INIT] Scanning for Incubator Proposals from ${vaults.length} vaults...`);
 
-        const start = Math.max(0, Number(incubatorCount) - 50);
-        for (let i = start; i < Number(incubatorCount); i++) {
+        for (const vault of vaults) {
             try {
-                const id = BigInt(i)
-                const data = await publicClient.readContract({
-                    address: INCUBATOR_VAULT_ADDRESS,
-                    abi: [
-                        parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')
-                    ],
-                    functionName: 'proposals',
-                    args: [id]
-                })
+                const incubatorCount = await publicClient.readContract({
+                    address: vault,
+                    abi: [parseAbiItem('function proposalCount() view returns (uint256)')],
+                    functionName: 'proposalCount'
+                }) as bigint
 
-                const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any
-                const progress = Number(pledgedAmount) / Number(targetAmount) * 100
+                const start = Math.max(0, Number(incubatorCount) - 30); // Scanning last 30 for historical
+                for (let i = start; i < Number(incubatorCount); i++) {
+                    try {
+                        const id = BigInt(i)
+                        const data = await publicClient.readContract({
+                            address: vault,
+                            abi: [
+                                parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')
+                            ],
+                            functionName: 'proposals',
+                            args: [id]
+                        })
 
-                agentManager.registerAgent({
-                    id: id.toString(),
-                    name,
-                    ticker,
-                    creator,
-                    metadataURI,
-                    targetAmount: targetAmount.toString(),
-                    pledgedAmount: pledgedAmount.toString(),
-                    bondingProgress: Math.min(progress, 100),
-                    launched,
-                    tokenAddress,
-                    createdAt: Number(createdAt),
-                    skills: [1],
-                    service_origin: 'incubator'
-                })
-            } catch (err) { }
-        }
+                        const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any
+                        const progress = Number(pledgedAmount) / Number(targetAmount) * 100
 
-        // 2. Fetch Instant Agents (Event-driven)
-        const instantLogs = await publicClient.getLogs({
-            address: INSTANT_LAUNCHER_ADDRESS,
-            event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
-            fromBlock: 'earliest'
-        })
-
-        for (const log of instantLogs) {
-            const { tokenAddress, creator, name, ticker, metadataURI, raisedAmount } = (log as any).args;
-            if (!agentManager.activeAgents.has(tokenAddress)) {
-                agentManager.registerAgent({
-                    id: tokenAddress,
-                    name,
-                    ticker,
-                    creator,
-                    metadataURI,
-                    targetAmount: '0',
-                    pledgedAmount: raisedAmount.toString(),
-                    bondingProgress: 100,
-                    launched: true,
-                    tokenAddress,
-                    createdAt: Math.floor(Date.now() / 1000),
-                    skills: [1],
-                    service_origin: 'instant'
-                })
+                        agentManager.registerAgent({
+                            id: `${vault}-${id}`, // Unique ID across vaults
+                            name,
+                            ticker,
+                            creator,
+                            metadataURI,
+                            targetAmount: targetAmount.toString(),
+                            pledgedAmount: pledgedAmount.toString(),
+                            bondingProgress: Math.min(progress, 100),
+                            launched,
+                            tokenAddress,
+                            createdAt: Number(createdAt),
+                            skills: [1],
+                            service_origin: 'incubator'
+                        })
+                    } catch (err) { }
+                }
+            } catch (err) {
+                console.warn(`[INIT] Failed scanning vault ${vault}:`, err);
             }
         }
+
+
+
+        // 2. Fetch Instant Launches (All versions with Chunking)
+        const launchers = [INSTANT_LAUNCHER_ADDRESS, ...LEGACY_LAUNCHERS];
+        const chunkSize = 45000n;
+
+        console.log(`[INIT] Scanning for Instant Launches (Range: ${fromBlock.toString()} to ${currentBlock.toString()})...`);
+
+        for (const launcher of launchers) {
+            try {
+                let currentFrom = fromBlock;
+                while (currentFrom < currentBlock) {
+                    const currentTo = currentFrom + chunkSize > currentBlock ? currentBlock : currentFrom + chunkSize;
+
+                    // A. New signature
+                    const logs = await publicClient.getLogs({
+                        address: launcher,
+                        event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
+                        fromBlock: currentFrom,
+                        toBlock: currentTo
+                    })
+                    for (const log of logs) {
+                        const { tokenAddress, creator, name, ticker, metadataURI, raisedAmount } = (log as any).args;
+                        registerLegacyAgent(tokenAddress, { name, ticker, creator, metadataURI, raisedAmount, origin: 'instant' });
+                    }
+
+                    // B. Legacy signature
+                    const legacyLogs = await publicClient.getLogs({
+                        address: launcher,
+                        event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
+                        fromBlock: currentFrom,
+                        toBlock: currentTo
+                    })
+                    for (const log of legacyLogs) {
+                        const { tokenAddress, creator, ticker, raisedAmount } = (log as any).args;
+                        registerLegacyAgent(tokenAddress, { ticker, creator, raisedAmount, origin: 'legacy-instant' });
+                    }
+
+                    currentFrom = currentTo + 1n;
+                }
+            } catch (err) {
+                console.warn(`[INIT] Failed scanning launcher ${launcher}:`, err);
+            }
+        }
+
 
         return Array.from(agentManager.activeAgents.values());
     } catch (e) {
@@ -121,7 +178,7 @@ const app = new Elysia({ adapter: node() })
     .get('/api/agents', async () => {
         return Array.from(agentManager.activeAgents.values()).reverse();
     })
-    .get('/api/agents/:id', async ({ params: { id } }) => {
+    .get('/api/agents/:id', async ({ params: { id } }: { params: { id: string } }) => {
         if (agentManager.activeAgents.has(id)) {
             return agentManager.activeAgents.get(id);
         }
@@ -151,15 +208,25 @@ const app = new Elysia({ adapter: node() })
             return { error: 'Agent not found' }
         }
     })
-    .get('/api/agents/:id/tweets', async ({ params: { id } }) => {
+    .get('/api/agents/:id/tweets', async ({ params: { id } }: { params: { id: string } }) => {
         return await agentManager.twitterService.getTweets(id);
     })
-    .get('/api/agents/:id/logs', async ({ params: { id } }) => {
+    .get('/api/agents/:id/logs', async ({ params: { id } }: { params: { id: string } }) => {
         return agentManager.getLogs(id);
     })
     .post('/api/sync-registry', async () => {
         const agents = await fetchAgents();
         return { success: true, count: agents.length };
+    })
+    .get('/api/debug', async () => {
+        const currentBlock = await publicClient.getBlockNumber();
+        return {
+            instant_launcher: INSTANT_LAUNCHER_ADDRESS,
+            incubator_vault: INCUBATOR_VAULT_ADDRESS,
+            current_block: currentBlock.toString(),
+            agent_count: agentManager.activeAgents.size,
+            agents: Array.from(agentManager.activeAgents.keys())
+        }
     })
     .post('/api/agents/manual-register', async ({ body }: { body: any }) => {
         agentManager.registerAgent(body);
@@ -226,11 +293,17 @@ console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.por
 
 // Watchers & Background Polling
 publicClient.watchContractEvent({
-    address: [INSTANT_LAUNCHER_ADDRESS as `0x${string}`, INCUBATOR_VAULT_ADDRESS as `0x${string}`],
+    address: [
+        INSTANT_LAUNCHER_ADDRESS as `0x${string}`,
+        INCUBATOR_VAULT_ADDRESS as `0x${string}`,
+        ...LEGACY_LAUNCHERS,
+        ...LEGACY_VAULTS
+    ],
     abi: [
         parseAbiItem('event Launched(uint256 indexed id, address tokenAddress, uint256 raisedAmount)'),
         parseAbiItem('event ProposalCreated(uint256 indexed id, string name, string ticker, address indexed creator)'),
-        parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)')
+        parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
+        parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)')
     ],
     onLogs: async (logs) => {
         console.log(`[EVENT] Detected ${logs.length} on-chain events. Syncing...`);

@@ -1,0 +1,9 @@
+[dotenv@17.2.4] injecting env (1) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.2.4] injecting env (0) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+Deploying contracts with the account: 0x8314181a4C29e23780650c45cE50DDE591A099bb
+InstantLauncher deployed to: 0x849D1B9A3E4f63525cc592935d8F0af6fEb406A6
+IncubatorVault deployed to: 0x1c22090f25A3c4285Dd58bd020Ee5e0a9782157f
+
+--- DEPLOYMENT COMPLETE ---
+INSTANT_LAUNCHER_ADDRESS="0x849D1B9A3E4f63525cc592935d8F0af6fEb406A6"
+INCUBATOR_VAULT_ADDRESS="0x1c22090f25A3c4285Dd58bd020Ee5e0a9782157f"

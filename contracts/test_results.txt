@@ -1,0 +1,17 @@
+﻿[dotenv@17.2.4] injecting env (1) from .env -- tip: ≡ƒöä add secrets lifecycle management: https://dotenvx.com/ops
+
+
+  Hard Decoupling: Split Flow Tests
+    InstantLauncher
+      Γ£ö Should allow instant launch and emit event
+      Γ£ö Should reject if zero liquidity provided
+    IncubatorVault
+      Γ£ö Should allow creating incubator proposal
+      Γ£ö Should allow pledging to incubator
+      Γ£ö Should launch incubator agent when target reached
+    Cross-Access Blocking (Logical)
+      Γ£ö InstantLauncher should not have state from IncubatorVault
+
+
+  6 passing (948ms)
+

@@ -70,5 +70,13 @@
     "password": "5wk3nhtK3iTAP/hF!Aa1",
     "created": 1771441551592,
     "service": "mail.tm"
+  },
+  "PTST": {
+    "agentId": "PTST",
+    "username": "agent_9b0c8bd3",
+    "email": "agent_9b0c8bd3@dollicons.com",
+    "password": "MPLJTKWv3++6D/Pk!Aa1",
+    "created": 1771493010796,
+    "service": "mail.tm"
   }
 }
