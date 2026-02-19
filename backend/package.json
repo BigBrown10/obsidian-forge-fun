@@ -17,5 +17,8 @@
         "tsx": "latest",
         "typescript": "latest",
         "viem": "latest"
+    },
+    "devDependencies": {
+        "localtunnel": "^2.0.2"
     }
 }

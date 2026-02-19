@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect, Suspense } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { CreateAgentSchema, type CreateAgentForm } from '../../lib/api'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain, useReadContract } from 'wagmi'
 import { parseEther } from 'viem'
 import {
@@ -92,56 +95,57 @@ const AGENT_PRESETS = [
 
 function CreateAgentContent() {
     const router = useRouter()
-    // --- State ---
-    const [name, setName] = useState('')
-    const [ticker, setTicker] = useState('')
-    const [description, setDescription] = useState(AGENT_PRESETS.find(p => p.id === 'full_arsenal')?.manifesto || '')
-    const [target, setTarget] = useState('0.1') // Even lower default target
-    const [initialBuy, setInitialBuy] = useState('0.001') // Minimum viable liquidity
-
-    // Capital Allocation
-    const [vaultPercent, setVaultPercent] = useState(50)
-
-    // Operations Budget Breakdown (Visual Metadata Only)
-    const [marketingPercent, setMarketingPercent] = useState(40)
-    const [teamPercent, setTeamPercent] = useState(30)
-    // Community/Ops remainder is calculated automatically
-
-    const [agentType, setAgentType] = useState<string>('full_arsenal')
-    const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false)
-
     const searchParams = useSearchParams()
 
+    // --- React Hook Form ---
+    const { register, handleSubmit, setValue, watch, trigger, formState: { errors, isValid } } = useForm<CreateAgentForm>({
+        resolver: zodResolver(CreateAgentSchema),
+        defaultValues: {
+            name: '',
+            ticker: '',
+            description: AGENT_PRESETS.find(p => p.id === 'full_arsenal')?.manifesto || '',
+            agentType: 'full_arsenal',
+            initialBuy: '0.001',
+            vaultPercent: 50,
+            marketingPercent: 40,
+            teamPercent: 30,
+            launchMode: (searchParams.get('mode') as 'instant' | 'incubator') || 'instant'
+        }
+    })
+
+    // Watch values for UI logic
+    const {
+        name,
+        ticker,
+        description,
+        agentType,
+        launchMode,
+        initialBuy,
+        vaultPercent,
+        marketingPercent,
+        teamPercent,
+        image
+    } = watch()
+
+    // Local UI State
+    const [imagePreview, setImagePreview] = useState<string | null>(null)
+    const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
     // Step Control
-    // Default to 'mode' unless param is present
-    // step control
     const initialMode = searchParams.get('mode') as 'instant' | 'incubator' | null
-    const [launchMode, setLaunchMode] = useState<'instant' | 'incubator' | null>(initialMode)
     const [currentStep, setCurrentStep] = useState<'mode' | 'manifesto' | 'pledge' | 'launching'>(initialMode ? 'manifesto' : 'mode')
 
-    // State clearing when switching modes (Hard Decoupling)
+    // State clearing when switching modes
     const handleModeSelection = (mode: 'instant' | 'incubator') => {
-        // Clear metadata/form state to prevent "bleeding"
-        setName('')
-        setTicker('')
-        setDescription('')
-        setImage(null)
-        setImagePreview(null)
-        setSavedMetadata(null)
-        setPendingProposalId(null)
-
-        setLaunchMode(mode)
-        setInitialBuy(mode === 'instant' ? '0.001' : '0')
+        setValue('launchMode', mode)
+        setValue('initialBuy', mode === 'instant' ? '0.001' : '0')
         setCurrentStep('manifesto')
     }
+
     const [pendingProposalId, setPendingProposalId] = useState<bigint | null>(null)
     const [savedMetadata, setSavedMetadata] = useState<any>(null) // For optimistic sync
     const [isRegistering, setIsRegistering] = useState(false) // New state for UI feedback
-
-    // Image
-    const [image, setImage] = useState<File | null>(null)
-    const [imagePreview, setImagePreview] = useState<string | null>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Wagmi
     const { isConnected, address } = useAccount()
@@ -170,33 +174,18 @@ function CreateAgentContent() {
             // Only update if description is empty or matches another preset (don't overwrite user edits)
             const isPresetManifesto = AGENT_PRESETS.some(p => p.manifesto === description)
             if (!description || isPresetManifesto) {
-                setDescription(preset.manifesto)
+                setValue('description', preset.manifesto, { shouldValidate: true })
             }
         }
-    }, [agentType])
+    }, [agentType, setValue])
 
     // Optimistic Registration (Trigger immediately on Hash)
     useEffect(() => {
-        if (hash && currentStep === 'launching' && !pendingProposalId && proposalCount) {
+        if (hash && currentStep === 'launching' && !pendingProposalId && proposalCount !== undefined) {
             const handleOptimistic = async () => {
-                // Prevent double-fire if we already have an ID or are registering
                 if (isRegistering) return;
 
-                // Predict ID
-                const id = proposalCount; // proposalCount IS the next ID (0-indexed length? Wait, solidity length is next ID? Standard count is length. Array index is 0..count-1. Next ID is count.)
-                // Actually, if we look at previous logic: `const id = proposalCount - BigInt(1)` was used for success.
-                // Wait, if proposalCount is total count BEFORE tx, then next ID is proposalCount.
-                // If proposalCount is total count AFTER tx (which it is in success block), then ID is count-1.
-                // We are reading `proposalCount` from the hook. It updates every 2s. 
-                // At this moment (hash exists, but not mined), proposalCount is likely the OLD count. 
-                // So the NEW agent will have ID = proposalCount.
-
-                // Let's verify standard solidity: proposals.push() -> length increases. ID is typically index.
-                // If length is 5 (ids 0-4), next is 5.
-                // So id = proposalCount.
-
                 const predictedId = proposalCount;
-
                 console.log("🚀 Optimistic Registering Agent (Predicted ID):", predictedId.toString());
                 setIsRegistering(true);
 
@@ -207,7 +196,7 @@ function CreateAgentContent() {
                         ticker,
                         creator: address,
                         metadataURI: savedMetadata ? JSON.stringify(savedMetadata) : "{}",
-                        targetAmount: parseEther(target).toString(),
+                        targetAmount: '10000000000000000000', // Mock target
                         pledgedAmount: parseEther(initialBuy).toString(),
                         bondingProgress: 0,
                         launched: launchMode === 'instant',
@@ -224,7 +213,7 @@ function CreateAgentContent() {
                     fetch('/api/sync-registry', { method: 'POST' }).catch(e => console.error(e));
 
                     console.log("✅ Optimistic Registration Complete");
-                    setPendingProposalId(predictedId); // Store it so we don't re-register
+                    setPendingProposalId(predictedId);
                 } catch (e) {
                     console.error("Optimistic Register Failed:", e);
                 } finally {
@@ -233,7 +222,7 @@ function CreateAgentContent() {
             }
             handleOptimistic();
         }
-    }, [hash, currentStep, proposalCount, isRegistering, savedMetadata, address, name, ticker, target, initialBuy, launchMode, agentType])
+    }, [hash, currentStep, proposalCount, isRegistering, savedMetadata, address, name, ticker, initialBuy, launchMode, agentType])
 
     // Handle Transaction Success (Confirmation)
     useEffect(() => {
@@ -241,7 +230,6 @@ function CreateAgentContent() {
             const handleSuccess = async () => {
                 console.log("✅ Transaction Confirmed!");
 
-                // 1. Trigger Backend Sync Immediately (Fire & Forget)
                 if (hash) {
                     fetch('/api/sync-tx', {
                         method: 'POST',
@@ -250,36 +238,26 @@ function CreateAgentContent() {
                     }).catch(err => console.error("Background Sync Trigger Failed (Non-fatal):", err));
                 }
 
-                // 2. Prepare Optimistic Params
-                // Read directly from form values or state since formData might not be in scope/updated
-                // 'name', 'ticker' are props/state in this scope.
-                // We need image/description. 'savedMetadata' has them!
-                let image = '', desc = '';
+                let imgStr = '', desc = '';
                 if (savedMetadata) {
                     try {
-                        // savedMetadata is already an object, not a stringified JSON
-                        image = savedMetadata.image || '';
+                        imgStr = savedMetadata.image || '';
                         desc = savedMetadata.description || '';
-                    } catch (e) {
-                        console.error("Error parsing savedMetadata:", e);
-                    }
+                    } catch (e) { console.error(e); }
                 }
 
                 const params = new URLSearchParams()
                 params.set('newly_created', 'true')
                 params.set('mode', launchMode || 'instant')
-                params.set('name', name) // 'name' state
-                params.set('image', image)
+                params.set('name', name)
+                params.set('image', imgStr)
                 params.set('desc', desc)
-                params.set('id', (pendingProposalId || BigInt(0)).toString()) // Pass ID if we have it?
+                // Pass ID if we have it, otherwise defaulting to 0 might show wrong data, but optimistic view usually ignores ID logic for data fetching
+                params.set('id', (pendingProposalId || BigInt(0)).toString())
 
-                // 3. Show Success & Redirect
                 if (launchMode === 'incubator') {
-                    // Incubator -> Agent Page (Incubator View)
                     setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 1000)
                 } else {
-                    // Instant -> Agent Page (Live View)
-                    // The buy was already included in the launchInstant call
                     setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 1000)
                 }
             }
@@ -287,26 +265,11 @@ function CreateAgentContent() {
         }
     }, [isSuccess, currentStep, pendingProposalId, launchMode, initialBuy, ticker, router, hash, savedMetadata, name])
 
-    // ... (rest of file)
-
-    // UI Change for Step:
-    // If Incubator, we might want to change the "Continue" text or skip the Pledge UI entirely?
-    // Current flow: Mode -> Manifesto -> Pledge -> Launching
-    // For Incubator: Mode -> Manifesto -> Launching (Triggered by button on Manifesto?)
-    // OR: Mode -> Manifesto -> Pledge (but Pledge is "Gas Only" / "Deploy")
-
-    // Let's modify the "Manifesto" step's "Continue" button action.
-    // If Incubator, go straight to launch? Or show a confirmation "Deploy Incubator (Gas Only)"?
-    // The "Pledge" step UI has a "Launch Sequence (Gas Only)" button if amount is 0.
-    // So we can re-use the Pledge step but FORCE amount to 0 and hide the inputs?
-
-    // ... logic below ... 
-
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
-            setImage(file)
+            setValue('image', file, { shouldValidate: true })
             const reader = new FileReader()
             reader.onloadend = () => setImagePreview(reader.result as string)
             reader.readAsDataURL(file)
@@ -314,7 +277,9 @@ function CreateAgentContent() {
     }
 
     const handleCreateProposal = async () => {
-        if (!name || !ticker) return alert("Name and Ticker required")
+        const valid = await trigger();
+        if (!valid) return;
+
         if (!isConnected) return alert("Connect Wallet")
         if (chainId !== 97) return switchChain({ chainId: 97 })
 
@@ -323,18 +288,17 @@ function CreateAgentContent() {
 
         try {
             // 1. Upload Image to Greenfield (if exists)
-            let imageUrl = ''; // Default to empty string so we can detect "no image"
+            let imageUrl = '';
             if (image && isConnected) {
                 try {
                     console.log("1. Uploading Image to Greenfield...");
                     imageUrl = await uploadToGreenfield(image, address || '0x0000000000000000000000000000000000000000');
-                    console.log("Image Uploaded:", imageUrl);
                     if (!imageUrl) throw new Error("Image upload returned empty URL");
                 } catch (err) {
                     console.error("Image Upload Failed:", err);
-                    alert("Image upload failed. Please try again or use a different image.");
-                    setCurrentStep('mode'); // Reset to first step or handle error better
-                    return; // STOP execution
+                    alert("Image upload failed. Please try again.");
+                    setCurrentStep('pledge'); // Go back
+                    return;
                 }
             }
 
@@ -345,7 +309,7 @@ function CreateAgentContent() {
                 vaultPercent,
                 opsPercent: 100 - vaultPercent,
                 agentType,
-                launchMode, // Added launchMode
+                launchMode,
                 skills: AGENT_PRESETS.find(p => p.id === agentType)?.skills || [],
                 budgetAllocation: {
                     marketing: marketingPercent,
@@ -353,145 +317,110 @@ function CreateAgentContent() {
                     community: 100 - marketingPercent - teamPercent
                 }
             };
-            setSavedMetadata(metadata); // SAVE FOR OPTIMISTIC SYNC
+            setSavedMetadata(metadata);
 
-            // 3. Upload Metadata to Greenfield
-            // 3. Upload Metadata to Greenfield
+            // 3. Upload Metadata
             console.log("3. Uploading Metadata...");
             let metadataUrl = "";
             try {
                 const metadataFile = new File([JSON.stringify(metadata)], 'metadata.json', { type: 'application/json' });
                 metadataUrl = await uploadToGreenfield(metadataFile, '0x0000000000000000000000000000000000000000');
-                console.log("Metadata URL:", metadataUrl);
             } catch (metaErr) {
-                console.warn("⚠️ Metadata Upload Failed (RPC/Greenfield issue). Proceeding with Mock URL.", metaErr);
-                // Fallback to a data URI or a mock URL so the contract call doesn't fail "Invalid Params"
-                // Ideally, the contract just takes a string.
+                console.warn("Metadata Upload Failed, using fallback", metaErr);
                 metadataUrl = `ipfs://mock-metadata-${Date.now()}`;
             }
 
-            if (!metadataUrl) {
-                metadataUrl = `ipfs://fallback-${Date.now()}`;
-            }
-
-            // 4. Simulate Contract (Optimistic Check)
-            // This catches logic errors (reverts) BEFORE the wallet popup, providing a clear error.
-            // It also warms up the RPC connection.
-            console.log("Simulating createProposal...");
-            // We need a public client. We can't use `usePublicClient` easily here without refactoring the hook usage
-            // inside the callback, but we can standardly rely on writeContract's internal estimateGas.
-            // HOWEVER, to debug the specific "RPC Error", explicit simulation is better.
-
-            // Let's rely on writeContract but catch the error better in the UI loop.
-            // actually, let's just use the reduced polling first. adding simulation logic inside the handler
-            // requires `publicClient` instance.
-
-            // 4. Execute Contract
-            console.log("4. Executing Contract Call...");
-
+            // 4. Contract Call
             if (launchMode === 'instant') {
                 writeContract({
                     address: INSTANT_LAUNCHER_ADDRESS,
                     abi: INSTANT_LAUNCHER_ABI,
                     functionName: 'launchInstant',
-                    args: [
-                        name,
-                        ticker,
-                        JSON.stringify(metadata)
-                    ],
+                    args: [name, ticker, JSON.stringify(metadata)],
                     value: parseEther(initialBuy)
                 }, {
                     onError: (err: any) => {
-                        console.error("❌ Instant Launch Error:", err);
-                        alert(`Instant Launch Failed: ${err.shortMessage || err.message}`);
+                        console.error("Launch Error:", err);
+                        alert(`Launch Failed: ${err.message}`);
                         setCurrentStep('pledge');
                     }
                 })
             } else {
-                const safeTarget = target || '10';
                 writeContract({
                     address: INCUBATOR_VAULT_ADDRESS,
                     abi: LAUNCHPAD_ABI,
                     functionName: 'createProposal',
-                    args: [
-                        name,
-                        ticker,
-                        JSON.stringify(metadata),
-                        parseEther(safeTarget),
-                    ],
+                    args: [name, ticker, JSON.stringify(metadata), parseEther('10')], // Mock target 10 BNB for now
                 }, {
                     onError: (err: any) => {
-                        console.error("❌ Incubator Launch Error:", err);
-                        alert(`Incubator Launch Failed: ${err.shortMessage || err.message}`);
+                        console.error("Launch Error:", err);
+                        alert(`Launch Failed: ${err.message}`);
                         setCurrentStep('manifesto');
                     }
                 })
             }
+
         } catch (e: any) {
-            console.error("❌ Critical Logic Error:", e);
-            alert("Error: " + (e.message || e));
+            console.error("Logic Error:", e);
+            alert("Error: " + e.message);
             setCurrentStep('manifesto')
         }
     }
 
-    const handlePledge = (id: bigint) => {
-        try {
-            writeContract({
-                address: INCUBATOR_VAULT_ADDRESS,
-                abi: LAUNCHPAD_ABI,
-                functionName: 'pledge',
-                args: [id],
-                value: parseEther(initialBuy)
-            })
-        } catch (e) {
-            console.error(e)
-            // If pledge fails, user is stuck but agent exists. Redirect?
-            alert("Pledge failed to start. Agent exists though.")
-            // Try to extract image from saved metadata or just skip it
-            let imgUrl = "";
-            try {
-                if (savedMetadata) imgUrl = JSON.parse(savedMetadata).image;
-            } catch (ignore) { }
 
-            router.push(`/agent/${ticker}?newly_created=true&mode=instant&name=${name}&image=${encodeURIComponent(imgUrl)}`)
-        }
-    }
-
-    // --- UI Helpers ---
     const stepClass = (s: string) => `transition-all duration-500 ${currentStep === s ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full hidden'}`
 
     return (
         <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-
             {/* Background Ambience */}
             <div className="absolute inset-x-0 top-0 h-96 bg-accent/5 blur-[100px] pointer-events-none" />
 
-            <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-center relative z-10">
+            <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-start relative z-10">
 
                 {/* Visual / Preview Side */}
-                <div className="order-2 lg:order-1">
+                <div className="order-2 lg:order-1 sticky top-6">
                     <div className="relative group">
                         <div className="absolute -inset-1 bg-gradient-to-r from-accent to-blue-600 rounded-[32px] blur opacity-20 group-hover:opacity-40 transition duration-1000" />
                         <div className="relative bg-surface border border-white/5 rounded-[30px] p-8 min-h-[300px] lg:min-h-[400px] flex flex-col justify-between overflow-hidden">
                             {/* Mock scanline */}
                             <div className="scanline-overlay opacity-20" />
 
-                            <div>
+                            {/* Background Image Preview Layer */}
+                            {imagePreview && (
+                                <div className="absolute inset-0 z-0">
+                                    <img src={imagePreview} className="w-full h-full object-cover opacity-20 blur-sm" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/80 to-transparent" />
+                                </div>
+                            )}
+
+                            <div className="relative z-10">
                                 <div className="text-xs font-mono text-accent mb-4 tracking-widest uppercase">
                                     {currentStep === 'mode' ? 'Select_Protocol' : currentStep === 'manifesto' ? 'System_Initializing...' : 'Uplink_Active'}
                                 </div>
-                                <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50 tracking-tighter mb-2">
-                                    {name || 'Unknown_Entity'}
-                                </h1>
-                                <div className="text-lg font-mono text-text-dim tracking-widest mb-6">
-                                    ${ticker || 'NULL'}
+
+                                <div className="flex gap-4 mb-4">
+                                    {/* Small live preview if image exists */}
+                                    {imagePreview && (
+                                        <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 shrink-0">
+                                            <img src={imagePreview} className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50 tracking-tighter mb-2 break-all">
+                                            {name || 'Unknown_Entity'}
+                                        </h1>
+                                        <div className="text-lg font-mono text-text-dim tracking-widest">
+                                            ${ticker || 'NULL'}
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-text-secondary leading-relaxed font-light">
+
+                                <p className="text-text-secondary leading-relaxed font-light line-clamp-6">
                                     {description || "Awaiting neural pattern definition..."}
                                 </p>
                             </div>
 
-                            <div className="mt-8 pt-8 border-t border-white/5">
+                            <div className="mt-8 pt-8 border-t border-white/5 relative z-10">
                                 <div className="flex justify-between items-end">
                                     <div className="text-xs text-text-dim uppercase tracking-widest">Initial Stake</div>
                                     <div className="text-2xl font-mono text-white">{initialBuy} BNB</div>
@@ -566,11 +495,12 @@ function CreateAgentContent() {
                                         <p className="text-text-secondary">Define the parameters of your autonomous agent.</p>
                                     </div>
                                     <button
+                                        type="button"
                                         onClick={() => {
                                             const p = MOCK_PERSONAS[Math.floor(Math.random() * MOCK_PERSONAS.length)]
-                                            setName(p.name)
-                                            setTicker(p.ticker)
-                                            setDescription(p.description)
+                                            setValue('name', p.name)
+                                            setValue('ticker', p.ticker)
+                                            setValue('description', p.description)
                                         }}
                                         className="text-xs flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-accent transition-colors border border-accent/20 hover:border-accent/50"
                                     >
@@ -579,31 +509,79 @@ function CreateAgentContent() {
                                 </div>
                             </div>
 
+                            <form className="space-y-5" onSubmit={handleSubmit((data) => {
+                                if (launchMode === 'incubator') {
+                                    handleCreateProposal(); // Logic for incubator (skip pledge)
+                                } else {
+                                    // Logic for instant (go to pledge)
+                                    setCurrentStep('pledge');
+                                }
+                            })}>
 
-                            <div className="space-y-5">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <input
-                                        value={name} onChange={e => setName(e.target.value)}
-                                        placeholder="Agent Name"
-                                        className="bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white focus:border-accent outline-none transition-colors"
-                                    />
-                                    <input
-                                        value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())}
-                                        placeholder="$TICKER"
-                                        maxLength={8}
-                                        className="bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white font-mono focus:border-accent outline-none transition-colors"
-                                    />
+                                {/* HELLA BIG LOGO UPLOAD */}
+                                <div className="flex justify-center mb-6">
+                                    <div
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className={`w-48 h-48 rounded-[32px] bg-surface border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-accent hover:text-accent transition-all duration-300 group relative overflow-hidden ${errors.image ? 'border-red-500 text-red-500' : 'border-white/20 text-white/30'}`}
+                                    >
+                                        {imagePreview ? (
+                                            <>
+                                                <img src={imagePreview} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                    <RefreshCw className="w-8 h-8 text-white" />
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-3">
+                                                <Upload className="w-12 h-12" />
+                                                <span className="text-xs font-bold uppercase tracking-widest">Upload Avatar</span>
+                                            </div>
+                                        )}
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={handleImageChange}
+                                        />
+                                    </div>
                                 </div>
-                                <textarea
-                                    value={description} onChange={e => setDescription(e.target.value)}
-                                    placeholder="Manifesto / Description..."
-                                    className="w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white focus:border-accent outline-none transition-colors h-32 resize-none"
-                                />
+                                {errors.image && <p className="text-red-500 text-center text-sm -mt-4">{errors.image.message as string}</p>}
+
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <input
+                                            {...register('name')}
+                                            placeholder="Agent Name"
+                                            className="w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white focus:border-accent outline-none transition-colors"
+                                        />
+                                        {errors.name && <p className="text-red-500 text-xs pl-2">{errors.name.message}</p>}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <input
+                                            {...register('ticker', { onChange: (e) => e.target.value = e.target.value.toUpperCase() })}
+                                            placeholder="$TICKER"
+                                            maxLength={8}
+                                            className="w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white font-mono focus:border-accent outline-none transition-colors"
+                                        />
+                                        {errors.ticker && <p className="text-red-500 text-xs pl-2">{errors.ticker.message}</p>}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <textarea
+                                        {...register('description')}
+                                        placeholder="Manifesto / Description..."
+                                        className="w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white focus:border-accent outline-none transition-colors h-32 resize-none"
+                                    />
+                                    {errors.description && <p className="text-red-500 text-xs pl-2">{errors.description.message}</p>}
+                                </div>
 
                                 {/* Agent Type Selector */}
                                 <div className="relative">
                                     <label className="text-xs font-bold text-text-dim uppercase tracking-widest mb-2 block">Agent Type</label>
                                     <button
+                                        type="button"
                                         onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
                                         className="w-full bg-surface border border-white/10 rounded-2xl px-5 py-4 text-white text-left flex items-center justify-between hover:border-accent/50 transition-colors"
                                     >
@@ -622,7 +600,8 @@ function CreateAgentContent() {
                                             {AGENT_PRESETS.map(preset => (
                                                 <button
                                                     key={preset.id}
-                                                    onClick={() => { setAgentType(preset.id); setIsTypeDropdownOpen(false); }}
+                                                    type="button"
+                                                    onClick={() => { setValue('agentType', preset.id); setIsTypeDropdownOpen(false); }}
                                                     className={`w-full px-5 py-4 text-left flex items-center gap-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 ${agentType === preset.id ? 'bg-accent/10 border-l-2 border-l-accent' : ''
                                                         }`}
                                                 >
@@ -661,7 +640,7 @@ function CreateAgentContent() {
                                                 </div>
                                                 <input
                                                     type="range" min="10" max="90" step="5" value={vaultPercent}
-                                                    onChange={(e) => setVaultPercent(Number(e.target.value))}
+                                                    onChange={(e) => setValue('vaultPercent', Number(e.target.value))}
                                                     className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent"
                                                 />
                                             </div>
@@ -678,7 +657,7 @@ function CreateAgentContent() {
                                                         </div>
                                                         <input type="range" min="0" max="100" value={marketingPercent} onChange={e => {
                                                             const val = Number(e.target.value);
-                                                            if (val + teamPercent <= 100) setMarketingPercent(val);
+                                                            if (val + teamPercent <= 100) setValue('marketingPercent', val);
                                                         }} className="w-full h-1.5 bg-surface rounded appearance-none cursor-pointer accent-blue-400" />
                                                     </div>
 
@@ -689,7 +668,7 @@ function CreateAgentContent() {
                                                         </div>
                                                         <input type="range" min="0" max="100" value={teamPercent} onChange={e => {
                                                             const val = Number(e.target.value);
-                                                            if (val + marketingPercent <= 100) setTeamPercent(val);
+                                                            if (val + marketingPercent <= 100) setValue('teamPercent', val);
                                                         }} className="w-full h-1.5 bg-surface rounded appearance-none cursor-pointer accent-green-400" />
                                                     </div>
 
@@ -708,48 +687,21 @@ function CreateAgentContent() {
                                     </details>
                                 </div>
 
-                                <div className="flex gap-4 items-center">
-                                    <div
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="w-16 h-16 rounded-2xl bg-surface border border-dashed border-white/20 flex items-center justify-center cursor-pointer hover:border-accent hover:text-accent transition-colors text-white/30"
-                                    >
-                                        {imagePreview ? <img src={imagePreview} className="w-full h-full object-cover rounded-2xl" /> : <Upload className="w-6 h-6" />}
-                                        <input ref={fileInputRef} type="file" className="hidden" onChange={handleImageChange} />
-                                    </div>
-                                    <div className="text-xs text-text-dim">
-                                        Upload Avatar<br />(Optional)
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => {
-                                    if (!image) return alert("Image is required to launch an agent.");
-
-                                    if (launchMode === 'incubator') {
-                                        // Skip Pledge -> Go straight to Launch
-                                        handleCreateProposal()
-                                    } else {
-                                        // For Instant, ensure initialBuy is > 0
-                                        if (parseFloat(initialBuy) <= 0) {
-                                            setInitialBuy('0.001');
-                                        }
-                                        setCurrentStep('pledge')
-                                    }
-                                }}
-                                disabled={!name || !ticker || !image}
-                                className="w-full py-5 bg-white text-black rounded-2xl font-bold text-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {launchMode === 'incubator' ? (
-                                    <>
-                                        <div className="p-1 rounded-full bg-blue-500/20 mr-2"><Egg className="w-4 h-4 text-blue-400" /></div> Start Incubation
-                                    </>
-                                ) : (
-                                    <>
-                                        Continue <ArrowRight className="w-5 h-5" />
-                                    </>
-                                )}
-                            </button>
+                                <button
+                                    type="submit"
+                                    className="w-full py-5 bg-white text-black rounded-2xl font-bold text-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {launchMode === 'incubator' ? (
+                                        <>
+                                            <div className="p-1 rounded-full bg-blue-500/20 mr-2"><Egg className="w-4 h-4 text-blue-400" /></div> Start Incubation
+                                        </>
+                                    ) : (
+                                        <>
+                                            Continue <ArrowRight className="w-5 h-5" />
+                                        </>
+                                    )}
+                                </button>
+                            </form>
                         </div>
                     )}
 
@@ -769,7 +721,8 @@ function CreateAgentContent() {
                                     <label className="text-xs font-bold text-text-dim uppercase tracking-widest mb-2 block">Add to Bonding Curve (Optional)</label>
                                     <input
                                         type="number"
-                                        value={initialBuy} onChange={e => setInitialBuy(e.target.value)}
+                                        value={initialBuy}
+                                        onChange={e => setValue('initialBuy', e.target.value)}
                                         className="w-full bg-[#050505] border border-white/10 rounded-[24px] py-6 px-8 text-4xl font-mono text-white focus:border-accent outline-none transition-colors text-center"
                                         placeholder="0.0"
                                     />
@@ -780,7 +733,7 @@ function CreateAgentContent() {
                                     {['0.001', '0.01', '0.05', '0.1', '0.5', '1.0'].map(amt => (
                                         <button
                                             key={amt}
-                                            onClick={() => setInitialBuy(amt)}
+                                            onClick={() => setValue('initialBuy', amt)}
                                             className={`py-4 rounded-xl font-mono text-sm border transition-all ${initialBuy === amt ? 'border-accent bg-accent/20 text-white shadow-[0_0_15px_-5px_var(--accent)]' : 'border-white/10 bg-surface text-text-dim hover:text-white hover:border-white/30'}`}
                                         >
                                             {amt}

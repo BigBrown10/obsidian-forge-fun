@@ -7,7 +7,8 @@ import { motion } from 'framer-motion'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi'
 import { parseEther, formatEther, erc20Abi } from 'viem'
 import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI, ROUTER_ADDRESS, ROUTER_ABI } from '../../../lib/contracts'
-import { getAgentByTicker, type Agent } from '../../../lib/api'
+import { getAgentByTicker, type Agent } from '../../../lib/api' // Keeping getAgentByTicker for now if needed by server components, but type Agent is essential
+import { useAgent } from '../../../hooks/useAgents' // Import hook
 import { formatMarketCap } from '../../../data/mock'
 import ManageAgent from './manage'
 import AgentActivityLog from '../../../components/AgentActivityLog'
@@ -17,15 +18,12 @@ import AgentBootSequence from '../../../components/AgentBootSequence'
 
 export default function AgentDetail({ params, searchParams }: { params: Promise<{ ticker: string }>, searchParams?: Promise<{ newly_created?: string, mode?: string, name?: string, image?: string, desc?: string, id?: string }> }) {
     const [resolvedParams, setResolvedParams] = useState<{ ticker: string } | null>(null)
-    const [isNewlyCreated, setIsNewlyCreated] = useState(false)
     const [creationMode, setCreationMode] = useState<string>('instant')
-
-    // Optimistic Data
     const [optimisticAgent, setOptimisticAgent] = useState<Agent | null>(null)
+    const [isNewlyCreated, setIsNewlyCreated] = useState(false)
 
-    const [agent, setAgent] = useState<Agent | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [logs, setLogs] = useState<any[]>([])
+    // React Query Hook
+    const { data: realAgent, isLoading: isQueryLoading } = useAgent(resolvedParams?.ticker || '')
 
     // Wagmi
     const { isConnected, address } = useAccount()
@@ -39,15 +37,15 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
                 setIsNewlyCreated(p?.newly_created === 'true')
                 if (p?.mode) setCreationMode(p.mode)
 
-                // Optimistic Hydration
+                // Optimistic Hydration for immediate feedback
                 if (p?.name && p?.mode) {
                     const optAgent: Agent = {
-                        id: p.id || '0', // Temporary ID
+                        id: p.id || '0',
                         name: p.name,
-                        ticker: '', // Will be set from resolvedParams
+                        ticker: '', // Will be updated by resolvedParams
                         creator: '',
                         metadataURI: JSON.stringify({ image: p.image, description: p.desc, launchMode: p.mode }),
-                        targetAmount: '10000000000000000000', // Mock 10 BNB
+                        targetAmount: '10000000000000000000',
                         pledgedAmount: '0',
                         bondingProgress: 0,
                         launched: false,
@@ -55,62 +53,28 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
                         createdAt: new Date().toISOString(),
                     }
                     setOptimisticAgent(optAgent)
-                    // If we have optimistic data, we are NOT loading.
-                    setLoading(false)
                 }
             });
         }
     }, [params, searchParams])
 
-    // Derived State
-    const activeAgent = agent || (optimisticAgent ? { ...optimisticAgent, ticker: resolvedParams?.ticker || '' } : null)
+    // Derived State: Real data takes precedence, fallback to optimistic
+    const activeAgent = realAgent || (optimisticAgent ? { ...optimisticAgent, ticker: resolvedParams?.ticker || '' } : null)
+
+    // Loading State: True if query is loading AND we don't have optimistic data
+    const loading = isQueryLoading && !optimisticAgent
+
     const isCreator = activeAgent && address ? activeAgent.creator.toLowerCase() === address.toLowerCase() : false
 
-    useEffect(() => {
-        if (resolvedParams) {
-            let retries = 0
-            const maxRetries = isNewlyCreated ? 150 : 30
-
-            const fetchAgent = () => {
-                getAgentByTicker(resolvedParams.ticker)
-                    .then(data => {
-                        if (data) {
-                            setAgent(data)
-                            setLoading(false)
-                            // Clear optimistic once real data arrives logic? Not strictly needed if agent overrides activeAgent
-                        } else if (retries < maxRetries) {
-                            retries++
-                            setTimeout(fetchAgent, 2000)
-                        } else {
-                            if (!optimisticAgent) setLoading(false) // Only stop loading if we don't have optimistic data
-                        }
-                    })
-                    .catch(() => {
-                        if (retries < maxRetries) { retries++; setTimeout(fetchAgent, 2000) }
-                        else if (!optimisticAgent) setLoading(false)
-                    })
-            }
-            fetchAgent()
-        }
-    }, [resolvedParams, isNewlyCreated])
-
     const handleForceSync = async () => {
-        setLoading(true)
+        // Implementation remains same, but trigger refetch via queryClient invalidation ideally
         try {
             await fetch('/api/sync-registry', { method: 'POST' })
-            // Wait 2s for backend to process
-            await new Promise(r => setTimeout(r, 2000))
-            const data = await getAgentByTicker(resolvedParams?.ticker || '')
-            if (data) setAgent(data)
-        } catch (e) {
-            console.error(e)
-        } finally {
-            setLoading(false)
-        }
+            // In a real app we'd invalidate queries: queryClient.invalidateQueries({ queryKey: ['agent', ticker] })
+            // For now, reliance on auto-refetch is fine or window reload
+            window.location.reload()
+        } catch (e) { console.error(e) }
     }
-
-
-    // ...
 
     if (loading) {
         if (isNewlyCreated) {

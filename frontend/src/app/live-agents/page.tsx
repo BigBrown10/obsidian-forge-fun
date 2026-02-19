@@ -2,49 +2,28 @@
 
 export const dynamic = 'force-dynamic'
 
-import React, { useState, useEffect } from 'react'
-import { Activity, Rocket, Info } from 'lucide-react'
-import { getAgents, type Agent } from '../../lib/api'
+import React from 'react'
+import { Activity, Rocket, Info, Loader2 } from 'lucide-react'
+import { useAgents } from '../../hooks/useAgents'
 import TokenRow from '../../components/TokenRow'
+import { useQueryClient } from '@tanstack/react-query'
 
 export default function LiveAgentsPage() {
-    const [agents, setAgents] = useState<Agent[]>([])
-    const [loading, setLoading] = useState(true)
-
-    useEffect(() => {
-        const fetchAgents = async () => {
-            try {
-                const data = await getAgents()
-                setAgents(data)
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        fetchAgents()
-        const interval = setInterval(fetchAgents, 10000)
-
-        // WebSocket logic
-        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws'
-        const socket = new WebSocket(wsUrl)
-
-        socket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data)
-                if (data.type === 'AGENTS_UPDATED') {
-                    setAgents(data.agents)
-                }
-            } catch (err) { }
-        }
-
-        return () => {
-            clearInterval(interval)
-            socket.close()
-        }
-    }, [])
+    // Use the global hook which is fed by SocketConnector + Polling
+    const { data: agents = [], isLoading: loading } = useAgents()
+    const queryClient = useQueryClient()
 
     const liveAgents = agents.filter(a => a.launched || a.launchMode === 'instant')
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    const handleDeepSync = async () => {
+        try {
+            await fetch('/api/sync-registry', { method: 'POST' });
+            queryClient.invalidateQueries({ queryKey: ['agents'] })
+        } catch (e) {
+            console.error("Sync failed", e)
+        }
+    }
 
     return (
         <div className="min-h-screen bg-[#050505] text-text-primary p-6 lg:p-12 space-y-10 relative overflow-hidden">
@@ -68,16 +47,7 @@ export default function LiveAgentsPage() {
                         </div>
                     </div>
                     <button
-                        onClick={async () => {
-                            setLoading(true);
-                            try {
-                                await fetch('/api/sync-registry', { method: 'POST' });
-                                const data = await getAgents();
-                                setAgents(data);
-                            } finally {
-                                setLoading(false);
-                            }
-                        }}
+                        onClick={handleDeepSync}
                         disabled={loading}
                         className="group flex items-center gap-3 px-6 py-2.5 rounded-full bg-white text-black hover:bg-white/90 transition-all duration-300 disabled:opacity-50 font-bold text-sm shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-[1.02] active:scale-[0.98]"
                     >
@@ -134,7 +104,7 @@ export default function LiveAgentsPage() {
                             </p>
                         </div>
                         <button
-                            onClick={() => window.location.href = '/launch'}
+                            onClick={() => window.location.href = '/create'}
                             className="px-8 py-3 rounded-full bg-accent text-white font-bold hover:brightness-110 transition-all shadow-lg shadow-accent/20"
                         >
                             Launch First Agent

@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { type Agent } from '../lib/api'
+import { type Agent } from '../hooks/useAgents' // Import from hooks for consistency
 import { TrendingUp, MessageSquare, Activity, User, Globe, MessageCircle, Zap } from 'lucide-react'
 import { formatCompactNumber } from '../lib/formatting'
 
