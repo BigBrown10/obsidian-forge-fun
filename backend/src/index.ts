@@ -48,117 +48,125 @@ const registerLegacyAgent = (tokenAddress: string, data: any) => {
     }, true); // SKIP BOOT during hydration
 };
 
+let isHydrating = false;
+
 // --- Startup Hydration ---
 const fetchAgents = async () => {
+    if (isHydrating) return;
+    isHydrating = true;
     try {
-        console.log(`[INIT] Hydrating Agent Registry...`);
+        console.log(`[INIT] Hydrating Agent Registry (Concurrency Level: Parallel)...`);
         const currentBlock = await publicClient.getBlockNumber();
-        const fromBlock = currentBlock - 300000n; // ~10 days historical scan
+        const fromBlock = currentBlock - 400000n; // Extended range (~13 days)
 
-        // 1. Fetch Incubator Agents (Stateful - All versions)
-        const vaults = [INCUBATOR_VAULT_ADDRESS, ...LEGACY_VAULTS];
-        console.log(`[INIT] Scanning for Incubator Proposals from ${vaults.length} vaults...`);
+        const scanTasks: Promise<void>[] = [];
+
+        // 1. Parallel Incubator Scans
+        const vaults = [INCUBATOR_VAULT_ADDRESS, ...LEGACY_VAULTS].filter(Boolean);
+        console.log(`[INIT] Hydrating ${vaults.length} Vaults...`);
 
         for (const vault of vaults) {
-            try {
-                const count = await publicClient.readContract({
-                    address: vault as `0x${string}`,
-                    abi: [parseAbiItem('function proposalCount() view returns (uint256)')],
-                    functionName: 'proposalCount'
-                }) as bigint;
+            scanTasks.push((async () => {
+                try {
+                    const count = await publicClient.readContract({
+                        address: vault as `0x${string}`,
+                        abi: [parseAbiItem('function proposalCount() view returns (uint256)')],
+                        functionName: 'proposalCount'
+                    }) as bigint;
 
-                for (let i = 0n; i < count; i++) {
-                    try {
-                        const data = await publicClient.readContract({
-                            address: vault as `0x${string}`,
-                            abi: [parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')],
-                            functionName: 'proposals',
-                            args: [i]
-                        });
-                        const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any;
-                        agentManager.registerAgent({
-                            id: `${vault}-${i}`,
-                            name, ticker, creator, metadataURI,
-                            targetAmount: targetAmount.toString(),
-                            pledgedAmount: pledgedAmount.toString(),
-                            bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
-                            launched, tokenAddress,
-                            createdAt: Number(createdAt),
-                            skills: [1],
-                            service_origin: 'incubator'
-                        }, true); // SKIP BOOT during hydration
-                    } catch (e) { }
+                    console.log(`[INIT] Vault ${vault} has ${count} proposals.`);
+
+                    for (let i = 0n; i < count; i++) {
+                        try {
+                            const data = await publicClient.readContract({
+                                address: vault as `0x${string}`,
+                                abi: [parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')],
+                                functionName: 'proposals',
+                                args: [i]
+                            });
+                            const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any;
+                            agentManager.registerAgent({
+                                id: `${vault}-${i}`,
+                                name, ticker, creator, metadataURI,
+                                targetAmount: targetAmount.toString(),
+                                pledgedAmount: pledgedAmount.toString(),
+                                bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
+                                launched, tokenAddress,
+                                createdAt: Number(createdAt),
+                                skills: [1],
+                                service_origin: 'incubator'
+                            }, true);
+                        } catch (e) {
+                            console.error(`[INIT] Error reading proposal ${i} on vault ${vault}`);
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`[INIT] Skip Vault ${vault} (ABI mismatch or empty):`, (err as any).shortMessage || 'Failed');
                 }
-            } catch (err) {
-                console.warn(`[INIT] Failed scanning incubator ${vault}:`, err);
-            }
+            })());
         }
 
-        // 2. Fetch Instant Launches (All versions with Chunking)
-        const launchers = [INSTANT_LAUNCHER_ADDRESS, ...LEGACY_LAUNCHERS];
-        const chunkSize = 1000n; // Micro-chunks for extreme RPC stability
-
-        console.log(`[INIT] Scanning for Instant Launches (Range: ${fromBlock.toString()} to ${currentBlock.toString()})...`);
+        // 2. Parallel Instant Launch Scans (Backward Chronology)
+        const launchers = [INSTANT_LAUNCHER_ADDRESS, ...LEGACY_LAUNCHERS].filter(Boolean);
+        const chunkSize = 2500n; // Optimized chunk size
 
         for (const launcher of launchers) {
-            try {
-                // Apple-standard "LIFO" Logic: Scan from current to past
-                let currentTo = currentBlock;
-                while (currentTo > fromBlock) {
-                    const currentFrom = currentTo - chunkSize < fromBlock ? fromBlock : currentTo - chunkSize;
+            scanTasks.push((async () => {
+                try {
+                    let currentTo = currentBlock;
+                    while (currentTo > fromBlock) {
+                        const currentFrom = currentTo - chunkSize < fromBlock ? fromBlock : currentTo - chunkSize;
+                        let retryCount = 0;
+                        const maxRetries = 5;
+                        let success = false;
 
-                    let retryCount = 0;
-                    const maxRetries = 5;
-                    let logs: any[] = [];
-                    let legacyLogs: any[] = [];
-                    let success = false;
+                        while (retryCount < maxRetries && !success) {
+                            try {
+                                const [logs, legacyLogs] = await Promise.all([
+                                    publicClient.getLogs({
+                                        address: launcher as `0x${string}`,
+                                        event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
+                                        fromBlock: currentFrom,
+                                        toBlock: currentTo
+                                    }),
+                                    publicClient.getLogs({
+                                        address: launcher as `0x${string}`,
+                                        event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
+                                        fromBlock: currentFrom,
+                                        toBlock: currentTo
+                                    })
+                                ]);
 
-                    while (retryCount < maxRetries && !success) {
-                        try {
-                            logs = await publicClient.getLogs({
-                                address: launcher as `0x${string}`,
-                                event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
-                                fromBlock: currentFrom,
-                                toBlock: currentTo
-                            });
-
-                            legacyLogs = await publicClient.getLogs({
-                                address: launcher as `0x${string}`,
-                                event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
-                                fromBlock: currentFrom,
-                                toBlock: currentTo
-                            });
-                            success = true;
-                        } catch (chunkErr) {
-                            retryCount++;
-                            console.warn(`[INIT] Retry ${retryCount}/${maxRetries} for chunk ${currentFrom}-${currentTo} on ${launcher}`);
-                            if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 5000));
+                                for (const log of logs) {
+                                    const { tokenAddress, creator, name, ticker, metadataURI, raisedAmount } = (log as any).args;
+                                    registerLegacyAgent(tokenAddress, { name, ticker, creator, metadataURI, raisedAmount, origin: 'instant' });
+                                }
+                                for (const log of legacyLogs) {
+                                    const { tokenAddress, creator, ticker, raisedAmount } = (log as any).args;
+                                    registerLegacyAgent(tokenAddress, { ticker, creator, raisedAmount, origin: 'legacy-instant' });
+                                }
+                                success = true;
+                            } catch (chunkErr) {
+                                retryCount++;
+                                if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 2000));
+                            }
                         }
+                        currentTo = currentFrom - 1n;
                     }
-
-                    if (success) {
-                        for (const log of logs) {
-                            const { tokenAddress, creator, name, ticker, metadataURI, raisedAmount } = (log as any).args;
-                            registerLegacyAgent(tokenAddress, { name, ticker, creator, metadataURI, raisedAmount, origin: 'instant' });
-                        }
-                        for (const log of legacyLogs) {
-                            const { tokenAddress, creator, ticker, raisedAmount } = (log as any).args;
-                            registerLegacyAgent(tokenAddress, { ticker, creator, raisedAmount, origin: 'legacy-instant' });
-                        }
-                    } else {
-                        console.error(`[INIT] FATAL: Failed chunk ${currentFrom}-${currentTo} after ${maxRetries} retries.`);
-                    }
-                    currentTo = currentFrom - 1n; // Move backwards
+                } catch (err) {
+                    console.warn(`[INIT] Launcher ${launcher} scan halted early.`);
                 }
-            } catch (err) {
-                console.warn(`[INIT] Failed scanning launcher ${launcher}:`, err);
-            }
+            })());
         }
 
+        await Promise.allSettled(scanTasks);
+        console.log(`[INIT] Platform Registry Fully Hydrated.`);
         return Array.from(agentManager.activeAgents.values());
     } catch (e) {
-        console.error('Error fetching agents:', e)
+        console.error('CRITICAL: Hydration failed:', e)
         return []
+    } finally {
+        isHydrating = false;
     }
 }
 
@@ -328,5 +336,10 @@ publicClient.watchContractEvent({
     }
 });
 
-fetchAgents();
-setInterval(fetchAgents, 10000);
+// Initial Hydration (Non-blocking)
+fetchAgents().then(() => {
+    console.log(`[INIT] Initial hydration complete. Monitoring live events...`);
+});
+
+// Periodic Deep Sync (Much slower interval to ensure stability)
+setInterval(fetchAgents, 300000); // Every 5 minutes instead of 10 seconds
