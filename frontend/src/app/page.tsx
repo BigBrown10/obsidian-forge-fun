@@ -53,12 +53,6 @@ export default function Dashboard() {
             <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
             <h2 className="text-xl font-bold text-white">Incubator</h2>
           </div>
-          <Link
-            href="/create?mode=incubator"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors text-xs font-bold uppercase tracking-wider"
-          >
-            <Egg className="w-4 h-4" /> Start Incubation
-          </Link>
         </div>
 
         {incubatorAgents.length > 0 ? (

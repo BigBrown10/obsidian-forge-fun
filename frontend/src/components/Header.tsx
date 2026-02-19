@@ -43,6 +43,14 @@ export default function Header() {
                         <span className="hidden sm:inline">LAUNCH TOKEN</span>
                     </Link>
 
+                    <Link
+                        href="/create?mode=incubator"
+                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent hover:bg-accent-dim text-white font-bold text-sm tracking-wide transition-all shadow-[0_0_20px_-5px_rgba(124,58,237,0.5)] active:scale-95"
+                    >
+                        <Egg className="w-4 h-4" />
+                        <span className="hidden sm:inline">START INCUBATION</span>
+                    </Link>
+
                     {/* Replaced custom button with standard for reliability */}
                     <div className="rainbow-button-wrapper">
                         <HardwareConnect />
