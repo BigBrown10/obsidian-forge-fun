@@ -159,22 +159,29 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
         </div>
     )
 
-    // VIEW SELECTION LOGIC
-    // - Incubator Mode + Not Launched = ICO View
-    // - Instant Mode OR Launched = Live Trading View
+    // VIEW SELECTION LOGIC (STRICT SEPARATION)
+    // 1. Incubator Mode + Not Launched = ICO View
+    // 2. Instant Mode (even if !launched due to lag) = Live Trading View
+    // 3. Incubator Mode + Launched = Live Trading View
 
     let metadata: any = {};
     try {
         metadata = activeAgent.metadataURI && activeAgent.metadataURI.startsWith('{') ? JSON.parse(activeAgent.metadataURI) : {}
     } catch (e) { console.error("Metadata parse error", e) }
 
-    const launchMode = metadata.launchMode || 'instant'
-    const isIncubator = launchMode === 'incubator' && !activeAgent.launched
+    // Backend should ideally provide 'launchMode', but we fallback to metadata/param for speed
+    const launchMode = activeAgent.launchMode || metadata.launchMode || resolvedParams?.mode || 'instant';
 
-    if (isIncubator) {
+    // Strict Check:
+    // If it's an Incubator agent and it hasn't launched yet, show the Incubator UI.
+    // If it's an Instant agent, we ALWAYS show the Live UI (it might be "Pending Launch" on chain, but UI should be chatty).
+    const isIncubatorView = launchMode === 'incubator' && !activeAgent.launched;
+
+    if (isIncubatorView) {
         return <ICOLaunchView agent={activeAgent} />
     }
 
+    // Default to Live Trading for Instant or Launched Incubator agents
     return <LiveTradingView agent={activeAgent} logs={logs} setLogs={setLogs} isCreator={isCreator} />
 }
 

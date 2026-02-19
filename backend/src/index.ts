@@ -297,8 +297,15 @@ const app = new Elysia({ adapter: node() })
                     createdAt: new Date(Number(createdAt) * 1000).toISOString(),
                     launched, tokenAddress,
                     identity,
-                    skills: [1] // Default
+                    skills: [1], // Default
+                    launchMode: 'instant' // Default, will be overwritten by registerAgent if metadata exists
                 }
+
+                // Optimistic override for Instant Mode
+                // If we know it's instant, we treat it as launched/active immediately.
+                // However, we rely on registerAgent to parse the metadata and set the final launchMode.
+                // If registerAgent sees launchMode='instant', it boots it.
+
 
                 agentManager.registerAgent(agent);
                 return { success: true, agent };

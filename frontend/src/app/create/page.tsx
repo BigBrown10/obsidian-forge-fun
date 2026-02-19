@@ -250,13 +250,17 @@ function CreateAgentContent() {
 
                 // 3. Show Success & Redirect
                 if (launchMode === 'incubator') {
-                    // Incubator: Gas Only.
+                    // Incubator -> Agent Page (Incubator View)
                     setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 1000)
                 } else if (parseFloat(initialBuy) > 0 && hash) {
-                    // Instant With Buy -> Go to Pledge
+                    // Instant With Buy -> Go to Pledge (Already Handled? No, handlePledge is a function)
+                    // Wait, handlePledge triggers a write.
+                    // If we are here, we just finished `createProposal`.
+                    // The `handlePledge` function in this file triggers the pledge tx.
+                    // So we call it.
                     setTimeout(() => handlePledge(pendingProposalId || BigInt(0)), 500)
                 } else {
-                    // Instant No Buy
+                    // Instant No Buy -> Agent Page (Live View)
                     setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 1000)
                 }
             }
@@ -600,59 +604,70 @@ function CreateAgentContent() {
                                     )}
                                 </div>
 
-                                {/* Allocation Strategy */}
+                                {/* Allocation Strategy (Collapsible) */}
                                 <div className="space-y-4">
-                                    {/* Primary Split */}
-                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <span className="text-sm font-bold text-white">Capital Allocation (Vault vs Ops)</span>
-                                            <span className="text-xs text-text-dim">Vault: {vaultPercent}% | Ops: {100 - vaultPercent}%</span>
+                                    <details className="group p-4 bg-white/5 rounded-2xl border border-white/10 open:bg-white/10 transition-all">
+                                        <summary className="flex justify-between items-center cursor-pointer list-none">
+                                            <span className="text-sm font-bold text-white flex items-center gap-2">
+                                                <Zap className="w-4 h-4 text-text-dim" /> Advanced: Tokenomics & Allocations
+                                            </span>
+                                            <ChevronDown className="w-5 h-5 text-text-dim group-open:rotate-180 transition-transform" />
+                                        </summary>
+
+                                        <div className="pt-6 space-y-6 animate-in slide-in-from-top-2 duration-300">
+                                            {/* Primary Split */}
+                                            <div>
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <span className="text-sm font-bold text-white">Capital Allocation (Vault vs Ops)</span>
+                                                    <span className="text-xs text-text-dim">Vault: {vaultPercent}% | Ops: {100 - vaultPercent}%</span>
+                                                </div>
+                                                <input
+                                                    type="range" min="10" max="90" step="5" value={vaultPercent}
+                                                    onChange={(e) => setVaultPercent(Number(e.target.value))}
+                                                    className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent"
+                                                />
+                                            </div>
+
+                                            {/* Ops Budget Breakdown (Visual) */}
+                                            <div className="p-4 bg-black/20 rounded-xl border border-white/5">
+                                                <div className="text-xs font-bold text-text-dim uppercase tracking-widest mb-4">Ops Budget Breakdown</div>
+
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <div className="flex justify-between mb-1 text-xs">
+                                                            <span className="text-white">Marketing</span>
+                                                            <span className="text-text-dim">{marketingPercent}%</span>
+                                                        </div>
+                                                        <input type="range" min="0" max="100" value={marketingPercent} onChange={e => {
+                                                            const val = Number(e.target.value);
+                                                            if (val + teamPercent <= 100) setMarketingPercent(val);
+                                                        }} className="w-full h-1.5 bg-surface rounded appearance-none cursor-pointer accent-blue-400" />
+                                                    </div>
+
+                                                    <div>
+                                                        <div className="flex justify-between mb-1 text-xs">
+                                                            <span className="text-white">Team</span>
+                                                            <span className="text-text-dim">{teamPercent}%</span>
+                                                        </div>
+                                                        <input type="range" min="0" max="100" value={teamPercent} onChange={e => {
+                                                            const val = Number(e.target.value);
+                                                            if (val + marketingPercent <= 100) setTeamPercent(val);
+                                                        }} className="w-full h-1.5 bg-surface rounded appearance-none cursor-pointer accent-green-400" />
+                                                    </div>
+
+                                                    <div>
+                                                        <div className="flex justify-between mb-1 text-xs">
+                                                            <span className="text-white">Community / Reserves</span>
+                                                            <span className="text-text-dim">{100 - marketingPercent - teamPercent}%</span>
+                                                        </div>
+                                                        <div className="w-full h-1.5 bg-surface rounded overflow-hidden">
+                                                            <div className="h-full bg-purple-400" style={{ width: '100%' }} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <input
-                                            type="range" min="10" max="90" step="5" value={vaultPercent}
-                                            onChange={(e) => setVaultPercent(Number(e.target.value))}
-                                            className="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-accent"
-                                        />
-                                    </div>
-
-                                    {/* Ops Budget Breakdown (Visual) */}
-                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10 opacity-75">
-                                        <div className="text-xs font-bold text-text-dim uppercase tracking-widest mb-4">Ops Budget Breakdown</div>
-
-                                        <div className="space-y-4">
-                                            <div>
-                                                <div className="flex justify-between mb-1 text-xs">
-                                                    <span className="text-white">Marketing</span>
-                                                    <span className="text-text-dim">{marketingPercent}%</span>
-                                                </div>
-                                                <input type="range" min="0" max="100" value={marketingPercent} onChange={e => {
-                                                    const val = Number(e.target.value);
-                                                    if (val + teamPercent <= 100) setMarketingPercent(val);
-                                                }} className="w-full h-1.5 bg-surface rounded appearance-none cursor-pointer accent-blue-400" />
-                                            </div>
-
-                                            <div>
-                                                <div className="flex justify-between mb-1 text-xs">
-                                                    <span className="text-white">Team</span>
-                                                    <span className="text-text-dim">{teamPercent}%</span>
-                                                </div>
-                                                <input type="range" min="0" max="100" value={teamPercent} onChange={e => {
-                                                    const val = Number(e.target.value);
-                                                    if (val + marketingPercent <= 100) setTeamPercent(val);
-                                                }} className="w-full h-1.5 bg-surface rounded appearance-none cursor-pointer accent-green-400" />
-                                            </div>
-
-                                            <div>
-                                                <div className="flex justify-between mb-1 text-xs">
-                                                    <span className="text-white">Community / Reserves</span>
-                                                    <span className="text-text-dim">{100 - marketingPercent - teamPercent}%</span>
-                                                </div>
-                                                <div className="w-full h-1.5 bg-surface rounded overflow-hidden">
-                                                    <div className="h-full bg-purple-400" style={{ width: '100%' }} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    </details>
                                 </div>
 
                                 <div className="flex gap-4 items-center">
@@ -671,6 +686,8 @@ function CreateAgentContent() {
 
                             <button
                                 onClick={() => {
+                                    if (!image) return alert("Image is required to launch an agent.");
+
                                     if (launchMode === 'incubator') {
                                         // Skip Pledge -> Go straight to Launch
                                         handleCreateProposal()
@@ -678,8 +695,8 @@ function CreateAgentContent() {
                                         setCurrentStep('pledge')
                                     }
                                 }}
-                                disabled={!name || !ticker}
-                                className="w-full py-5 bg-white text-black rounded-2xl font-bold text-lg hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                disabled={!name || !ticker || !image}
+                                className="w-full py-5 bg-white text-black rounded-2xl font-bold text-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {launchMode === 'incubator' ? (
                                     <>
@@ -701,18 +718,20 @@ function CreateAgentContent() {
                                     if (currentStep === 'pledge') setCurrentStep('manifesto')
                                     else setCurrentStep('mode')
                                 }} />
-                                <h2 className="text-3xl font-bold text-white mb-2 mt-4">Initial Pledge</h2>
-                                <p className="text-text-secondary">Secure an early stake in {name}.</p>
+                                <h2 className="text-3xl font-bold text-white mb-2 mt-4">Seed Your Agent</h2>
+                                <p className="text-text-secondary">Add liquidity to the bonding curve to jumpstart trading.</p>
                             </div>
 
                             <div className="space-y-6">
                                 <div className="relative">
+                                    <label className="text-xs font-bold text-text-dim uppercase tracking-widest mb-2 block">Add to Bonding Curve (Optional)</label>
                                     <input
                                         type="number"
                                         value={initialBuy} onChange={e => setInitialBuy(e.target.value)}
                                         className="w-full bg-[#050505] border border-white/10 rounded-[24px] py-6 px-8 text-4xl font-mono text-white focus:border-accent outline-none transition-colors text-center"
+                                        placeholder="0.0"
                                     />
-                                    <span className="absolute top-1/2 -translate-y-1/2 right-8 text-text-dim font-bold">BNB</span>
+                                    <span className="absolute top-[60%] -translate-y-1/2 right-8 text-text-dim font-bold">BNB</span>
                                 </div>
 
                                 <div className="grid grid-cols-4 gap-3">

@@ -126,22 +126,52 @@ export class AgentManager {
     // Called when a new agent is detected on-chain
     registerAgent(agent: any) {
         if (this.activeAgents.has(agent.id)) return;
+
+        // ---------------------------------------------------------
+        // METADATA PARSING & MIGRATION LOGIC
+        // ---------------------------------------------------------
+        let metadata: any = {};
+        try {
+            metadata = agent.metadataURI && agent.metadataURI.startsWith('{') ? JSON.parse(agent.metadataURI) : {};
+        } catch (e) {
+            console.error(`[AGENT] Metadata parse error for ${agent.ticker}:`, e);
+        }
+
+        // Determine Launch Mode (Strict Separation)
+        // If 'launchMode' is in metadata, use it.
+        // If missing, infer from 'launched' status (Legacy Migration).
+        let launchMode = metadata.launchMode;
+        if (!launchMode) {
+            launchMode = agent.launched ? 'instant' : 'incubator';
+            // console.log(`[MIGRATION] Inferred launchMode='${launchMode}' for ${agent.ticker}`);
+        }
+
+        // Inject the strictly typed mode into the agent object
+        agent.launchMode = launchMode;
+
         this.activeAgents.set(agent.id, agent);
 
-        // CHECK LAUNCH STATUS:
-        // If agent is NOT launched (Incubator mode), we do NOT boot or start the loop.
-        // We just register it so it exists in memory for querying logs/status (which will be empty/dormant).
-        if (agent.launched === false) {
+        // ---------------------------------------------------------
+        // BEHAVIORAL LOGIC
+        // ---------------------------------------------------------
+
+        // CASE 1: INCUBATOR (Not Launched)
+        // - Incubator agents are DORMANT. They accept pledges but do NOT run loops/skills.
+        if (launchMode === 'incubator' && !agent.launched) {
             console.log(`🥚 Agent Registered (INCUBATOR): ${agent.name} (${agent.ticker}) - DORMANT`);
             this.addLog(agent.id, "STATUS", "Agent is in incubation. Systems dormant until launch.");
             return;
         }
 
+        // CASE 2: INCUBATOR (Launched) OR INSTANT (Launched or Not)
+        // - "Instant" agents are ALWAYS "live" in terms of looping/skills, even if the 'launched' bool is false momentarily on-chain.
+        // - "Incubator" agents that ARE 'launched' = true are now LIVE.
+
         // Trigger Boot Sequence for "Awakening" feel
         this.bootAgent(agent);
 
         this.startAgentLoop(agent);
-        console.log(`🤖 Agent Registered: ${agent.name} (${agent.ticker})`);
+        console.log(`🤖 Agent Registered (${launchMode.toUpperCase()}): ${agent.name} (${agent.ticker})`);
     }
 
     spawnAgent(agentId: string, manifest: any) {
