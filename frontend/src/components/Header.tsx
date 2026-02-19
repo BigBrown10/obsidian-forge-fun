@@ -34,13 +34,13 @@ export default function Header() {
                 </button>
 
                 <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => alert("Deployment Modal Placeholder: Open functionality coming soon!")}
+                    <Link
+                        href="/create"
                         className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent hover:bg-accent-dim text-white font-bold text-sm tracking-wide transition-all shadow-[0_0_20px_-5px_rgba(124,58,237,0.5)] active:scale-95"
                     >
                         <Rocket className="w-4 h-4" />
                         <span className="hidden sm:inline">DEPLOY AGENT</span>
-                    </button>
+                    </Link>
 
                     {/* Replaced custom button with standard for reliability */}
                     <div className="rainbow-button-wrapper">

@@ -8,7 +8,7 @@ export function SocketConnector() {
     const queryClient = useQueryClient()
 
     useEffect(() => {
-        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws'
+        const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://4.180.228.169:3001/ws'
         let socket: WebSocket | null = null;
         let retryCount = 0;
         let isUnmounting = false;

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 // VM Backend URL (Support local dev and staging)
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
+const BACKEND_URL = process.env.BACKEND_URL || 'http://4.180.228.169:3001'
 
 export async function GET() {
     try {
