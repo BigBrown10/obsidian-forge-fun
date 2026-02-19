@@ -1,5 +1,9 @@
 // Contract addresses — update after deployment
-export const LAUNCHPAD_ADDRESS = '0xB483e2320cEd721588a712289F9bab8aA79e0f55' as const // Deployed to BSC Testnet
+export const INSTANT_LAUNCHER_ADDRESS = '0x56c9caA37773055d2e5cFA2814af5B738D70c5D6' as const
+export const INCUBATOR_VAULT_ADDRESS = '0xCf7C1caCd2900947006306fAbCb3658e236222D6' as const
+
+// Legacy alias for backward compatibility until refactor complete
+export const LAUNCHPAD_ADDRESS = INCUBATOR_VAULT_ADDRESS
 
 // ForgeLaunchpad ABI (key functions only)
 export const LAUNCHPAD_ABI = [
@@ -92,6 +96,32 @@ export const LAUNCHPAD_ABI = [
             { indexed: false, name: 'raisedAmount', type: 'uint256' },
         ],
         name: 'Launched',
+        type: 'event',
+    },
+] as const
+
+// InstantLauncher ABI
+export const INSTANT_LAUNCHER_ABI = [
+    {
+        inputs: [
+            { name: '_name', type: 'string' },
+            { name: '_ticker', type: 'string' },
+            { name: '_metadataURI', type: 'string' },
+        ],
+        name: 'launchInstant',
+        outputs: [],
+        stateMutability: 'payable',
+        type: 'function',
+    },
+    {
+        anonymous: false,
+        inputs: [
+            { indexed: true, name: 'tokenAddress', type: 'address' },
+            { indexed: true, name: 'creator', type: 'address' },
+            { indexed: false, name: 'ticker', type: 'string' },
+            { indexed: false, name: 'raisedAmount', type: 'uint256' },
+        ],
+        name: 'InstantLaunch',
         type: 'event',
     },
 ] as const

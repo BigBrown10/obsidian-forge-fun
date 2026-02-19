@@ -148,6 +148,7 @@ export class AgentManager {
 
         // Inject the strictly typed mode into the agent object
         agent.launchMode = launchMode;
+        agent.service_origin = agent.service_origin || (launchMode === 'instant' ? 'instant' : 'incubator');
 
         this.activeAgents.set(agent.id, agent);
 
@@ -210,8 +211,16 @@ export class AgentManager {
 
         const accountSkill = this.skillRegistry.get(3); // AccountCreationSkill
         if (accountSkill) {
-            const result = await accountSkill.execute(agent, { platform: 'twitter', simulate: true });
-            this.addLog(agent.id, "SKILL", result);
+            // Validate first
+            const isValid = accountSkill.validate ? await accountSkill.validate(agent) : true;
+
+            if (isValid) {
+                // REAL MODE: simulate: false
+                const result = await accountSkill.execute(agent, { platform: 'twitter', simulate: false });
+                this.addLog(agent.id, "SKILL", result);
+            } else {
+                this.addLog(agent.id, "SKILL", "Skipped Account Creation: Verification failed.");
+            }
         }
 
         await new Promise(r => setTimeout(r, 1000));
@@ -246,19 +255,26 @@ export class AgentManager {
                 const skill = this.skillRegistry.get(skillId);
 
                 if (skill) {
-                    this.addLog(agent.id, "EXEC", `Executing skill: ${skill.name}...`);
+                    // VALIDATION CHECK
+                    const isValid = skill.validate ? await skill.validate(agent) : true;
 
-                    // Generate contextual input using LLM
-                    const input = {
-                        thought: await this.llmService.generateThought(agent.runtimePrompt || "Be yourself.", "status_update"),
-                        image: null
-                    };
+                    if (!isValid) {
+                        this.addLog(agent.id, "SKILL", `Skipped ${skill.name}: Validation failed.`);
+                    } else {
+                        this.addLog(agent.id, "EXEC", `Executing skill: ${skill.name}...`);
 
-                    const result = await skill.execute(agent, input);
-                    this.addLog(agent.id, "SKILL", `Result: ${result}`);
+                        // Generate contextual input using LLM
+                        const input = {
+                            thought: await this.llmService.generateThought(agent.runtimePrompt || "Be yourself.", "status_update"),
+                            image: null
+                        };
 
-                    // TEE Sign the action
-                    await this.attestationService.generateQuote(result);
+                        const result = await skill.execute(agent, input);
+                        this.addLog(agent.id, "SKILL", `Result: ${result}`);
+
+                        // TEE Sign the action
+                        await this.attestationService.generateQuote(result);
+                    }
                     return;
                 }
             }

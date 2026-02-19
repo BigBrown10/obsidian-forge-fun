@@ -229,4 +229,13 @@ export class AccountCreationSkill implements ISkill {
             await page.close();
         }
     }
+    public async validate(agent: any): Promise<boolean> {
+        // Validation: Ensure we have an identity to work with
+        const identity = this.identityService.getIdentity(agent.ticker);
+        if (!identity) {
+            console.warn(`[SKILL] Validation failed for ${this.name}: No identity found for ${agent.ticker}`);
+            return false;
+        }
+        return true;
+    }
 }

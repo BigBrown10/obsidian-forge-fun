@@ -3,4 +3,5 @@ export interface ISkill {
     name: string;
     description: string;
     execute(agent: any, input?: any): Promise<string>;
+    validate?(agent: any): Promise<boolean>;
 }

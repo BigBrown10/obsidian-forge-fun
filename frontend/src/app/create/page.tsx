@@ -3,7 +3,12 @@
 import { useState, useRef, useEffect, Suspense } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain, useReadContract } from 'wagmi'
 import { parseEther } from 'viem'
-import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI } from '../../lib/contracts'
+import {
+    INSTANT_LAUNCHER_ADDRESS,
+    INSTANT_LAUNCHER_ABI,
+    INCUBATOR_VAULT_ADDRESS,
+    LAUNCHPAD_ABI
+} from '../../lib/contracts'
 import { uploadToGreenfield } from '../../lib/greenfield'
 import { Loader2, Upload, Hammer, Zap, ArrowRight, CheckCircle2, RefreshCw, Rocket, Egg, ChevronDown, AlertCircle } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -109,9 +114,25 @@ function CreateAgentContent() {
 
     // Step Control
     // Default to 'mode' unless param is present
+    // step control
     const initialMode = searchParams.get('mode') as 'instant' | 'incubator' | null
     const [launchMode, setLaunchMode] = useState<'instant' | 'incubator' | null>(initialMode)
     const [currentStep, setCurrentStep] = useState<'mode' | 'manifesto' | 'pledge' | 'launching'>(initialMode ? 'manifesto' : 'mode')
+
+    // State clearing when switching modes (Hard Decoupling)
+    const handleModeSelection = (mode: 'instant' | 'incubator') => {
+        // Clear metadata/form state to prevent "bleeding"
+        setName('')
+        setTicker('')
+        setDescription('')
+        setImage(null)
+        setImagePreview(null)
+        setSavedMetadata(null)
+        setPendingProposalId(null)
+
+        setLaunchMode(mode)
+        setCurrentStep('manifesto')
+    }
     const [pendingProposalId, setPendingProposalId] = useState<bigint | null>(null)
     const [savedMetadata, setSavedMetadata] = useState<any>(null) // For optimistic sync
     const [isRegistering, setIsRegistering] = useState(false) // New state for UI feedback
@@ -128,12 +149,15 @@ function CreateAgentContent() {
     const { data: hash, writeContract, isPending, error: writeError } = useWriteContract()
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
 
-    // Read Proposal Count to predict ID
+    // Read Proposal Count (Only for Incubator)
     const { data: proposalCount } = useReadContract({
-        address: LAUNCHPAD_ADDRESS,
+        address: INCUBATOR_VAULT_ADDRESS,
         abi: LAUNCHPAD_ABI,
         functionName: 'proposalCount',
-        query: { refetchInterval: 2000 }
+        query: {
+            refetchInterval: 2000,
+            enabled: launchMode === 'incubator'
+        }
     })
 
     // --- Effects ---
@@ -370,28 +394,44 @@ function CreateAgentContent() {
             // 4. Execute Contract
             console.log("4. Executing Contract Call...");
 
-            // Validate Inputs
-            const safeTarget = target || '10'; // Default if empty
-            console.log("Params:", { name, ticker, metadataUrl, safeTarget });
-
-            writeContract({
-                address: LAUNCHPAD_ADDRESS,
-                abi: LAUNCHPAD_ABI,
-                functionName: 'createProposal',
-                args: [
-                    name,
-                    ticker,
-                    JSON.stringify(metadata), // Store inline JSON for MVP (avoids fetching URL)
-                    parseEther(safeTarget),
-                ],
-            }, {
-                onError: (err: any) => {
-                    console.error("❌ Contract Write Error:", err);
-                    console.error("Error Details:", err.details || err.cause || err.message);
-                    alert(`Launch Failed: ${err.shortMessage || err.message}`);
-                    setCurrentStep('manifesto');
-                }
-            })
+            if (launchMode === 'instant') {
+                writeContract({
+                    address: INSTANT_LAUNCHER_ADDRESS,
+                    abi: INSTANT_LAUNCHER_ABI,
+                    functionName: 'launchInstant',
+                    args: [
+                        name,
+                        ticker,
+                        JSON.stringify(metadata)
+                    ],
+                    value: parseEther(initialBuy)
+                }, {
+                    onError: (err: any) => {
+                        console.error("❌ Instant Launch Error:", err);
+                        alert(`Instant Launch Failed: ${err.shortMessage || err.message}`);
+                        setCurrentStep('pledge');
+                    }
+                })
+            } else {
+                const safeTarget = target || '10';
+                writeContract({
+                    address: INCUBATOR_VAULT_ADDRESS,
+                    abi: LAUNCHPAD_ABI,
+                    functionName: 'createProposal',
+                    args: [
+                        name,
+                        ticker,
+                        JSON.stringify(metadata),
+                        parseEther(safeTarget),
+                    ],
+                }, {
+                    onError: (err: any) => {
+                        console.error("❌ Incubator Launch Error:", err);
+                        alert(`Incubator Launch Failed: ${err.shortMessage || err.message}`);
+                        setCurrentStep('manifesto');
+                    }
+                })
+            }
         } catch (e: any) {
             console.error("❌ Critical Logic Error:", e);
             alert("Error: " + (e.message || e));
@@ -402,7 +442,7 @@ function CreateAgentContent() {
     const handlePledge = (id: bigint) => {
         try {
             writeContract({
-                address: LAUNCHPAD_ADDRESS,
+                address: INCUBATOR_VAULT_ADDRESS,
                 abi: LAUNCHPAD_ABI,
                 functionName: 'pledge',
                 args: [id],
@@ -481,7 +521,7 @@ function CreateAgentContent() {
 
                             <div className="grid gap-4">
                                 <button
-                                    onClick={() => { setLaunchMode('instant'); setCurrentStep('manifesto') }}
+                                    onClick={() => handleModeSelection('instant')}
                                     className="group relative p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-accent/50 transition-all text-left"
                                 >
                                     <div className="flex items-center gap-4 mb-2">
@@ -499,7 +539,7 @@ function CreateAgentContent() {
                                 </button>
 
                                 <button
-                                    onClick={() => { setLaunchMode('incubator'); setCurrentStep('manifesto') }}
+                                    onClick={() => handleModeSelection('incubator')}
                                     className="group relative p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-blue-400/50 transition-all text-left"
                                 >
                                     <div className="flex items-center gap-4 mb-2">

@@ -6,9 +6,10 @@ import { createPublicClient, http, parseAbiItem, decodeEventLog } from 'viem'
 import { bscTestnet } from 'viem/chains'
 import { AgentManager } from './AgentManager'
 
-const LAUNCHPAD_ADDRESS = '0xB483e2320cEd721588a712289F9bab8aA79e0f55'
+const INSTANT_LAUNCHER_ADDRESS = '0x56c9caA37773055d2e5cFA2814af5B738D70c5D6'
+const INCUBATOR_VAULT_ADDRESS = '0xCf7C1caCd2900947006306fAbCb3658e236222D6'
 const AGENT_SKILL_REGISTRY_ADDRESS = '0x7831569341a8aa0288917D5F93Aa5DF97aa532bE'
-const RPC_URL = 'https://bsc-testnet.publicnode.com' // More reliable public node
+const RPC_URL = 'https://bsc-testnet.publicnode.com'
 
 // --- Viem Client ---
 const publicClient = createPublicClient({
@@ -18,34 +19,24 @@ const publicClient = createPublicClient({
 
 const agentManager = new AgentManager();
 
-// --- Startup ---
+// --- Startup Hydration ---
 const fetchAgents = async () => {
     try {
-        console.log(`[INIT] Fetching agents via Count & Loop (Bypassing RPC Log Limits)...`);
+        console.log(`[INIT] Hydrating Agent Registry...`);
 
-        // 1. Get Total Count
-        const count = await publicClient.readContract({
-            address: LAUNCHPAD_ADDRESS,
+        // 1. Fetch Incubator Agents (Stateful)
+        const incubatorCount = await publicClient.readContract({
+            address: INCUBATOR_VAULT_ADDRESS,
             abi: [parseAbiItem('function proposalCount() view returns (uint256)')],
             functionName: 'proposalCount'
         }) as bigint
 
-        console.log(`[INIT] Found ${count} total proposals.`);
-
-        const agents = []
-
-        // 2. Iterate and fetch details (Fetch last 50 to ensure we see everything)
-        // In production, we should use an indexer database (e.g. SQlite/Postgres)
-        const start = Math.max(0, Number(count) - 50);
-        console.log(`[INIT] Loading agents from index ${start} to ${count}...`);
-
-        for (let i = start; i < Number(count); i++) {
+        const start = Math.max(0, Number(incubatorCount) - 50);
+        for (let i = start; i < Number(incubatorCount); i++) {
             try {
                 const id = BigInt(i)
-
-                // Fetch Proposal
                 const data = await publicClient.readContract({
-                    address: LAUNCHPAD_ADDRESS,
+                    address: INCUBATOR_VAULT_ADDRESS,
                     abi: [
                         parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')
                     ],
@@ -56,13 +47,7 @@ const fetchAgents = async () => {
                 const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any
                 const progress = Number(pledgedAmount) / Number(targetAmount) * 100
 
-                // Fetch Skills (Default to [1] for now)
-                let skills: number[] = [1]
-
-                // Fetch Identity
-                const identity = agentManager.getAgentIdentity(id.toString());
-
-                agents.push({
+                agentManager.registerAgent({
                     id: id.toString(),
                     name,
                     ticker,
@@ -74,24 +59,41 @@ const fetchAgents = async () => {
                     launched,
                     tokenAddress,
                     createdAt: new Date(Number(createdAt) * 1000).toISOString(),
-                    skills,
-                    identity
+                    skills: [1],
+                    service_origin: 'incubator'
                 })
-            } catch (err) {
-                console.error(`Error loading agent ${i}`, err)
+            } catch (err) { }
+        }
+
+        // 2. Fetch Instant Agents (Event-driven)
+        const instantLogs = await publicClient.getLogs({
+            address: INSTANT_LAUNCHER_ADDRESS,
+            event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
+            fromBlock: 'earliest'
+        })
+
+        for (const log of instantLogs) {
+            const { tokenAddress, creator, ticker, raisedAmount } = (log as any).args;
+            if (!agentManager.activeAgents.has(tokenAddress)) {
+                agentManager.registerAgent({
+                    id: tokenAddress,
+                    name: ticker,
+                    ticker,
+                    creator,
+                    metadataURI: '{}',
+                    targetAmount: '0',
+                    pledgedAmount: raisedAmount.toString(),
+                    bondingProgress: 100,
+                    launched: true,
+                    tokenAddress,
+                    createdAt: new Date().toISOString(),
+                    skills: [1],
+                    service_origin: 'instant'
+                })
             }
         }
 
-        const agentsList = agents.reverse()
-
-        // Register agents
-        agentsList.forEach(agent => {
-            agentManager.registerAgent(agent)
-            agentManager.updateEquippedSkills(agent.id, agent.skills);
-        })
-
-        return agentsList
-
+        return Array.from(agentManager.activeAgents.values());
     } catch (e) {
         console.error('Error fetching agents:', e)
         return []
@@ -101,255 +103,123 @@ const fetchAgents = async () => {
 const app = new Elysia({ adapter: node() })
     .use(cors())
     .get('/', () => 'Hello from Forge.fun Backend (Obsidian Core)')
-    .get('/health', () => 'OK') // K8s/OpenClaw Health Check
+    .get('/health', () => 'OK')
     .get('/api/agents', async () => {
-        // FAST PATH: Return from memory
-        // Convert Map values to array and reverse to show newest first
-        const agents = Array.from(agentManager.activeAgents.values()).reverse();
-        return agents;
+        return Array.from(agentManager.activeAgents.values()).reverse();
     })
     .get('/api/agents/:id', async ({ params: { id } }) => {
-        // FAST PATH: Check memory first
         if (agentManager.activeAgents.has(id)) {
             return agentManager.activeAgents.get(id);
         }
-
-        // SLOW PATH: Fallback to RPC (and cache it)
         try {
+            // Attempt fallback to Incubator Vault by ID
             const data = await publicClient.readContract({
-                address: LAUNCHPAD_ADDRESS,
-                abi: [
-                    parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')
-                ],
+                address: INCUBATOR_VAULT_ADDRESS,
+                abi: [parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')],
                 functionName: 'proposals',
                 args: [BigInt(id)]
             })
-            // serialize bigints
-            const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data
-
-            // Fetch Identity
-            const identity = agentManager.getAgentIdentity(id);
-
+            const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any
             const agent = {
-                id,
-                creator, name, ticker, metadataURI,
+                id, creator, name, ticker, metadataURI,
                 targetAmount: targetAmount.toString(),
                 pledgedAmount: pledgedAmount.toString(),
                 bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
                 createdAt: new Date(Number(createdAt) * 1000).toISOString(),
                 launched, tokenAddress,
-                identity,
-                skills: [1] // Default
+                identity: agentManager.getAgentIdentity(id),
+                skills: [1],
+                service_origin: 'incubator'
             }
-
-            // Cache it!
             agentManager.registerAgent(agent);
-
             return agent;
         } catch (e) {
             return { error: 'Agent not found' }
         }
     })
-    .post('/agent/spawn', async ({ body }: { body: any }) => {
-        const { agentId, manifest } = body;
-        return await agentManager.spawnAgent(agentId, manifest);
-    })
     .get('/api/agents/:id/tweets', async ({ params: { id } }) => {
-        const tweets = await agentManager.twitterService.getTweets(id);
-        // Include tweets from memory.
-        return tweets;
+        return await agentManager.twitterService.getTweets(id);
     })
     .get('/api/agents/:id/logs', async ({ params: { id } }) => {
-        const logs = agentManager.getLogs(id);
-        return logs;
-    })
-    .post('/agent/hibernate', async ({ body }: { body: any }) => {
-        const { agentId } = body;
-        return await agentManager.hibernateAgent(agentId);
-    })
-    .post('/agent/veto-check', async ({ body }: { body: any }) => {
-        const { pollId } = body;
-        const passed = await agentManager.checkConsent(pollId);
-        return { pollId, passed, timestamp: Date.now() };
+        return agentManager.getLogs(id);
     })
     .post('/api/sync-registry', async () => {
-        console.log('[API] Force-syncing agent registry from chain...');
         const agents = await fetchAgents();
         return { success: true, count: agents.length };
     })
     .post('/api/agents/manual-register', async ({ body }: { body: any }) => {
-        console.log(`[API] Manual Register request for ${body.ticker} (ID: ${body.id})`);
-
-        // Ensure defaults if missing
-        const agent = {
-            ...body,
-            createdAt: body.createdAt || new Date().toISOString(),
-            bondingProgress: body.bondingProgress || 0,
-            skills: body.skills || [1],
-            launched: body.launched ?? false,
-            targetAmount: body.targetAmount?.toString() || "0",
-            pledgedAmount: body.pledgedAmount?.toString() || "0"
-        };
-
-        agentManager.registerAgent(agent);
+        agentManager.registerAgent(body);
         return { success: true };
     })
-    // Phase 17: Training & Skills
-    .post('/api/agents/:id/prompt', async ({ params: { id }, body }: { params: { id: string }, body: any }) => {
-        console.log(`[API] Updating prompt for ${id}`);
-        agentManager.updateRuntimePrompt(id, body.prompt);
-        return { success: true };
-    })
-    .post('/api/agents/:id/skills', async ({ params: { id }, body }: { params: { id: string }, body: any }) => {
-        console.log(`[API] Syncing skills for ${id}`);
-        agentManager.updateEquippedSkills(id, body.skills);
-        return { success: true };
-    })
-    .get('/api/skills', async () => {
-        return agentManager.getAvailableSkills();
-    })
-    .post('/api/sync-tx', async ({ body }: { body: { txHash: string } }) => {
+    .post('/api/sync-tx', async ({ body }: { body: any }) => {
         const { txHash } = body;
-        console.log(`[API] Syncing from TX Hash: ${txHash}`);
         try {
-            // 1. Wait for TX (if not already mined) - though frontend usually calls this after confirm
             const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
 
-            // 2. Parse Logs to find 'ProposalCreated'
-            // Event Topic 0 for ProposalCreated(uint256,address,string,uint256)
-            // We can iterate and try to decode.
-            // Or just check all logs with the LAUNCHPAD ABI.
-
-            // We need to parse the logs to find the ID.
-            // Using viem's parseEventLogs would be ideal if we had the ABI handy in a format it likes, 
-            // but we can also just manually look for the event.
-            // ProposalCreated is the 2nd event in the ABI usually? 
-            // Let's use `parseLog` with the ABI item.
-
-            const proposalCreatedAbi = parseAbiItem('event ProposalCreated(uint256 indexed id, string name, string ticker, address indexed creator)');
-
-            let foundId = null;
-
+            // Detect Instant Launch
+            const instantLaunchAbi = parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)');
             for (const log of receipt.logs) {
                 try {
-                    // Try to parse as ProposalCreated
-                    // @ts-ignore
-                    const decoded = decodeEventLog({
-                        abi: [proposalCreatedAbi],
-                        data: log.data,
-                        topics: log.topics
-                    });
-                    if (decoded.eventName === 'ProposalCreated') {
-                        foundId = decoded.args.id;
-                        break;
+                    const decoded = decodeEventLog({ abi: [instantLaunchAbi as any], data: log.data, topics: log.topics }) as any;
+                    if (decoded.eventName === 'InstantLaunch') {
+                        const { tokenAddress, creator, ticker, raisedAmount } = decoded.args;
+                        const agent = {
+                            id: tokenAddress, name: ticker, ticker, creator, metadataURI: '{}',
+                            targetAmount: '0', pledgedAmount: raisedAmount.toString(),
+                            bondingProgress: 100, launched: true, tokenAddress,
+                            createdAt: new Date().toISOString(), service_origin: 'instant'
+                        };
+                        agentManager.registerAgent(agent);
+                        return { success: true, mode: 'instant', agent };
                     }
-                } catch (e) { continue; }
+                } catch (e) { }
             }
 
-            if (foundId == null) {
-                // Fallback: Maybe it was a 'Launched' event? (Incubator -> Live)
-                const launchedAbi = parseAbiItem('event Launched(uint256 indexed id, address tokenAddress, uint256 raisedAmount)');
-                for (const log of receipt.logs) {
-                    try {
-                        // @ts-ignore
-                        const decoded = decodeEventLog({
-                            abi: [launchedAbi],
-                            data: log.data,
-                            topics: log.topics
+            // Detect Incubator Proposal
+            const proposalCreatedAbi = parseAbiItem('event ProposalCreated(uint256 indexed id, string name, string ticker, address indexed creator)');
+            for (const log of receipt.logs) {
+                try {
+                    const decoded = decodeEventLog({ abi: [proposalCreatedAbi as any], data: log.data, topics: log.topics }) as any;
+                    if (decoded.eventName === 'ProposalCreated') {
+                        const id = decoded.args.id.toString();
+                        const data = await publicClient.readContract({
+                            address: INCUBATOR_VAULT_ADDRESS,
+                            abi: [parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')],
+                            functionName: 'proposals',
+                            args: [BigInt(id)]
                         });
-                        if (decoded.eventName === 'Launched') {
-                            foundId = decoded.args.id;
-                            break;
-                        }
-                    } catch (e) { continue; }
-                }
+                        const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any;
+                        const agent = {
+                            id, creator, name, ticker, metadataURI,
+                            targetAmount: targetAmount.toString(), pledgedAmount: pledgedAmount.toString(),
+                            bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
+                            createdAt: new Date(Number(createdAt) * 1000).toISOString(),
+                            launched, tokenAddress, service_origin: 'incubator'
+                        };
+                        agentManager.registerAgent(agent);
+                        return { success: true, mode: 'incubator', agent };
+                    }
+                } catch (e) { }
             }
-
-            if (foundId != null) {
-                console.log(`[API] Found Agent ID ${foundId} in TX logs. Indexing...`);
-                // Force fetch this ID
-                // We logic from GET /api/agents/:id but we need to call it internally.
-                // Refactor: We can just hit the publicClient reading logic directly here or reuse code.
-                // Reuse the logic from GET /api/agents/:id by extracting it? 
-                // For now, I will duplicate the single-read logic for safety/speed.
-
-                const id = foundId.toString();
-                const data = await publicClient.readContract({
-                    address: LAUNCHPAD_ADDRESS,
-                    abi: [
-                        parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')
-                    ],
-                    functionName: 'proposals',
-                    args: [BigInt(id)]
-                })
-                // serialize bigints
-                const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any
-
-                // Fetch Identity
-                const identity = agentManager.getAgentIdentity(id);
-
-                const agent = {
-                    id,
-                    creator, name, ticker, metadataURI,
-                    targetAmount: targetAmount.toString(),
-                    pledgedAmount: pledgedAmount.toString(),
-                    bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
-                    createdAt: new Date(Number(createdAt) * 1000).toISOString(),
-                    launched: true, // Force optimistic 'launched' for Instant Mode so it shows in feed
-                    tokenAddress,
-                    identity,
-                    skills: [1], // Default
-                    launchMode: 'instant' // Default, will be overwritten by registerAgent if metadata exists
-                }
-
-                // Optimistic override for Instant Mode
-                // If we know it's instant, we treat it as launched/active immediately.
-                // However, we rely on registerAgent to parse the metadata and set the final launchMode.
-                // If registerAgent sees launchMode='instant', it boots it.
-
-
-                agentManager.registerAgent(agent);
-                return { success: true, agent };
-            }
-
-            return { success: false, error: "No ProposalCreated event found in TX" };
-
-        } catch (e) {
-            console.error("SyncTX failed", e);
+            return { success: false, error: "No relevant events found" };
+        } catch (e: any) {
             return { success: false, error: e.toString() };
         }
     })
     .listen(process.env.PORT || 3001)
 
-// Initial Fetch
-fetchAgents().then(agents => {
-    console.log(`[INIT] Hydrated ${agents.length} agents from on-chain.`);
-});
+console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`)
 
-// Poll for new agents every 5 seconds (Aggressive for MVP responsiveness)
-setInterval(async () => {
-    console.log('[POLL] Checking for new agents...');
-    await fetchAgents();
-}, 5000);
-
-// --- Real-time Event Listener ---
-console.log(`[LISTENER] Watching for 'Launched' events on ${LAUNCHPAD_ADDRESS}...`);
+// Watchers & Background Polling
 publicClient.watchContractEvent({
-    address: LAUNCHPAD_ADDRESS,
+    address: [INSTANT_LAUNCHER_ADDRESS as `0x${string}`, INCUBATOR_VAULT_ADDRESS as `0x${string}`],
     abi: [
         parseAbiItem('event Launched(uint256 indexed id, address tokenAddress, uint256 raisedAmount)'),
-        parseAbiItem('event ProposalCreated(uint256 indexed id, string name, string ticker, address indexed creator)')
+        parseAbiItem('event ProposalCreated(uint256 indexed id, string name, string ticker, address indexed creator)'),
+        parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)')
     ],
-    onLogs: async (logs) => {
-        for (const log of logs) {
-            // Check event name (viem logs might not have eventName directly if multiple ABIs passed? 
-            // Actually watchContractEvent with list of ABIs might trigger for all. We need to check args.)
-
-            // Re-fetch all to be safe and simple
-            console.log(`[EVENT] Contract Event Detected! Syncing...`);
-            await fetchAgents();
-        }
-    }
+    onLogs: () => fetchAgents()
 });
 
-console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`)
+fetchAgents();
+setInterval(fetchAgents, 10000);
