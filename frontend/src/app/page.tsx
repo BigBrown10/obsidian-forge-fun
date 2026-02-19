@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import React, { useState, useEffect } from 'react'
 import { Search, Egg, Activity } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { getAgents, type Agent } from '../lib/api'
 import IncubatorCard from '../components/IncubatorCard'
 import TokenCard from '../components/TokenCard'
@@ -25,24 +26,13 @@ export default function Dashboard() {
   }
 
   const liveAgents = agents.filter(a => {
-    // 1. If Launched, it's Live.
-    if (a.launched) return true
+    // STRICT FILTER: Only Launched agents are Live.
+    // If it's not launched, it's NOT live. Period.
+    if (!a.launched) return false;
 
-    // 2. If not launched, check metadata.
-    try {
-      const m = a.metadataURI && a.metadataURI.startsWith('{') ? JSON.parse(a.metadataURI) : {}
-
-      // If Explicitly Incubator -> Exclude
-      if (m.launchMode === 'incubator') return false
-
-      // If Explicitly Instant -> Include
-      if (m.launchMode === 'instant') return true
-
-      // If no launch mode specified, but not launched -> Exclude (Safety)
-      return false
-    } catch {
-      return false // Error parsing -> Exclude from Live
-    }
+    // Double check metadata to ensure we don't accidentally show a "launched" incubator if that's even possible (it shouldn't be until TGE)
+    // But for now, launched = true is the source of truth for "Live Trading".
+    return true;
   }).sort((a, b) => Number(b.id) - Number(a.id))
 
   const incubatorAgents = agents.filter(a => {
@@ -58,9 +48,17 @@ export default function Dashboard() {
 
       {/* Incubator Feed (Featured Drops Style) */}
       <section>
-        <div className="flex items-center gap-2 mb-6">
-          <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-          <h2 className="text-xl font-bold text-white">Incubator</h2>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+            <h2 className="text-xl font-bold text-white">Incubator</h2>
+          </div>
+          <Link
+            href="/create?mode=incubator"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors text-xs font-bold uppercase tracking-wider"
+          >
+            <Egg className="w-4 h-4" /> Start Incubation
+          </Link>
         </div>
 
         {incubatorAgents.length > 0 ? (

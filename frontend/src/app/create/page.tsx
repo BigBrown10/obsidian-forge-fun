@@ -6,7 +6,7 @@ import { parseEther } from 'viem'
 import { LAUNCHPAD_ADDRESS, LAUNCHPAD_ABI } from '../../lib/contracts'
 import { uploadToGreenfield } from '../../lib/greenfield'
 import { Loader2, Upload, Hammer, Zap, ArrowRight, CheckCircle2, RefreshCw, Rocket, Egg, ChevronDown, AlertCircle } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { MOCK_PERSONAS } from '../../data/mock'
 
 // Agent Type Presets — each maps to specific skill IDs
@@ -105,9 +105,13 @@ export default function CreateAgent() {
     const [agentType, setAgentType] = useState<string>('full_arsenal')
     const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false)
 
+    const searchParams = useSearchParams()
+
     // Step Control
-    const [launchMode, setLaunchMode] = useState<'instant' | 'incubator' | null>(null)
-    const [currentStep, setCurrentStep] = useState<'mode' | 'manifesto' | 'pledge' | 'launching'>('mode')
+    // Default to 'mode' unless param is present
+    const initialMode = searchParams.get('mode') as 'instant' | 'incubator' | null
+    const [launchMode, setLaunchMode] = useState<'instant' | 'incubator' | null>(initialMode)
+    const [currentStep, setCurrentStep] = useState<'mode' | 'manifesto' | 'pledge' | 'launching'>(initialMode ? 'manifesto' : 'mode')
     const [pendingProposalId, setPendingProposalId] = useState<bigint | null>(null)
     const [savedMetadata, setSavedMetadata] = useState<any>(null) // For optimistic sync
     const [isRegistering, setIsRegistering] = useState(false) // New state for UI feedback
