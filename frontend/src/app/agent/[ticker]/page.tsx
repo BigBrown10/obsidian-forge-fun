@@ -366,7 +366,7 @@ function LiveTradingView({ agent, logs, setLogs, isCreator }: { agent: Agent, lo
 
                             {/* Quick Buttons */}
                             <div className="grid grid-cols-4 gap-2">
-                                {['0.1', '0.5', '1.0', '5.0'].map(val => (
+                                {['0.001', '0.01', '0.1', '1.0'].map(val => (
                                     <button
                                         key={val}
                                         onClick={() => setAmount(val)}
@@ -461,7 +461,7 @@ function ICOLaunchView({ agent }: { agent: Agent }) {
             abi: LAUNCHPAD_ABI,
             functionName: 'pledge',
             args: [BigInt(agent.id)],
-            value: parseEther((Number(amount) * 0.01).toString()) // Mock price: 0.01 BNB per "item"
+            value: parseEther((Number(amount) * 0.001).toString()) // Lowered mock price: 0.001 BNB per "item"
         })
     }
 
@@ -544,7 +544,7 @@ function ICOLaunchView({ agent }: { agent: Agent }) {
                         <div className="space-y-6">
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-text-dim uppercase tracking-widest">Price</div>
-                                <div className="text-2xl font-bold text-white font-mono">0.01 BNB <span className="text-xs text-text-dim font-normal">($6.50)</span></div>
+                                <div className="text-2xl font-bold text-white font-mono">0.001 BNB <span className="text-xs text-text-dim font-normal">($0.65)</span></div>
                             </div>
 
                             <div className="flex justify-end items-center gap-4">
@@ -561,7 +561,7 @@ function ICOLaunchView({ agent }: { agent: Agent }) {
 
                             <div className="flex justify-between items-center pt-4 border-t border-white/5 text-xs text-text-dim">
                                 <span>Mint Fee</span>
-                                <span>0.0025 BNB</span>
+                                <span>0.00025 BNB</span>
                             </div>
 
                             {/* Terms Checkbox (Mock) */}
