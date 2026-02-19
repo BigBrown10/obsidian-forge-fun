@@ -45,7 +45,7 @@ const registerLegacyAgent = (tokenAddress: string, data: any) => {
         createdAt: Math.floor(Date.now() / 1000),
         skills: [1],
         service_origin: data.origin || 'legacy-instant'
-    });
+    }, true); // SKIP BOOT during hydration
 };
 
 // --- Startup Hydration ---
@@ -86,7 +86,7 @@ const fetchAgents = async () => {
                             createdAt: Number(createdAt),
                             skills: [1],
                             service_origin: 'incubator'
-                        });
+                        }, true); // SKIP BOOT during hydration
                     } catch (e) { }
                 }
             } catch (err) {
@@ -106,30 +106,46 @@ const fetchAgents = async () => {
                 while (currentFrom < currentBlock) {
                     const currentTo = currentFrom + chunkSize > currentBlock ? currentBlock : currentFrom + chunkSize;
 
-                    try {
-                        const logs = await publicClient.getLogs({
-                            address: launcher as `0x${string}`,
-                            event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
-                            fromBlock: currentFrom,
-                            toBlock: currentTo
-                        })
+                    let retryCount = 0;
+                    const maxRetries = 3;
+                    let logs: any[] = [];
+                    let legacyLogs: any[] = [];
+                    let success = false;
+
+                    while (retryCount < maxRetries && !success) {
+                        try {
+                            logs = await publicClient.getLogs({
+                                address: launcher as `0x${string}`,
+                                event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
+                                fromBlock: currentFrom,
+                                toBlock: currentTo
+                            })
+
+                            legacyLogs = await publicClient.getLogs({
+                                address: launcher as `0x${string}`,
+                                event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
+                                fromBlock: currentFrom,
+                                toBlock: currentTo
+                            })
+                            success = true;
+                        } catch (chunkErr) {
+                            retryCount++;
+                            console.warn(`[INIT] Retry ${retryCount}/${maxRetries} for chunk ${currentFrom}-${currentTo} on ${launcher}`);
+                            if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 1000 * retryCount));
+                        }
+                    }
+
+                    if (success) {
                         for (const log of logs) {
                             const { tokenAddress, creator, name, ticker, metadataURI, raisedAmount } = (log as any).args;
                             registerLegacyAgent(tokenAddress, { name, ticker, creator, metadataURI, raisedAmount, origin: 'instant' });
                         }
-
-                        const legacyLogs = await publicClient.getLogs({
-                            address: launcher as `0x${string}`,
-                            event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
-                            fromBlock: currentFrom,
-                            toBlock: currentTo
-                        })
                         for (const log of legacyLogs) {
                             const { tokenAddress, creator, ticker, raisedAmount } = (log as any).args;
                             registerLegacyAgent(tokenAddress, { ticker, creator, raisedAmount, origin: 'legacy-instant' });
                         }
-                    } catch (chunkErr) {
-                        console.warn(`[INIT] Skip chunk ${currentFrom}-${currentTo} for ${launcher}`);
+                    } else {
+                        console.error(`[INIT] FATAL: Failed chunk ${currentFrom}-${currentTo} after ${maxRetries} retries.`);
                     }
                     currentFrom = currentTo + 1n;
                 }
@@ -165,7 +181,8 @@ const app = new Elysia({ adapter: node() })
     .get('/api/agents', async () => {
         return Array.from(agentManager.activeAgents.values()).reverse();
     })
-    .get('/api/agents/:id', async ({ params: { id } }: { params: { id: string } }) => {
+    .get('/api/agents/:id', async (context) => {
+        const id = context.params.id;
         if (agentManager.activeAgents.has(id)) {
             return agentManager.activeAgents.get(id);
         }
@@ -195,10 +212,12 @@ const app = new Elysia({ adapter: node() })
             return { error: 'Agent not found' }
         }
     })
-    .get('/api/agents/:id/tweets', async ({ params: { id } }: { params: { id: string } }) => {
+    .get('/api/agents/:id/tweets', async (context) => {
+        const id = context.params.id;
         return await agentManager.twitterService.getTweets(id);
     })
-    .get('/api/agents/:id/logs', async ({ params: { id } }: { params: { id: string } }) => {
+    .get('/api/agents/:id/logs', async (context) => {
+        const id = context.params.id;
         return agentManager.getLogs(id);
     })
     .post('/api/sync-registry', async () => {
