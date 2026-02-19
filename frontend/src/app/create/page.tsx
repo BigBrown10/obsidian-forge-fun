@@ -227,16 +227,16 @@ function CreateAgentContent() {
                 // 2. Next Steps
                 if (launchMode === 'incubator') {
                     // Incubator Mode: Gas Only. No Pledge.
-                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 500)
+                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 2000)
                 } else if (parseFloat(initialBuy) > 0 && hash) {
                     // Instant Mode with Buy
                     // We need to wait for the buy tx now? 
                     // The logic for 'handlePledge' uses `initialBuy`. 
                     // If we are here, the PROPOSAL is created.
-                    setTimeout(() => handlePledge(id), 500)
+                    setTimeout(() => handlePledge(id), 1000)
                 } else {
                     // Instant Mode without Buy
-                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 500)
+                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 2000)
                 }
             }
             handleSuccess();
@@ -751,6 +751,15 @@ function CreateAgentContent() {
                                     className="mt-6 px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
                                 >
                                     Try Again
+                                </button>
+                            )}
+
+                            {isSuccess && (
+                                <button
+                                    onClick={() => router.push(`/agent/${ticker}`)}
+                                    className="mt-6 px-6 py-2 bg-accent hover:bg-accent-dim text-white rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                    View Agent <ArrowRight className="w-4 h-4" />
                                 </button>
                             )}
                         </div>

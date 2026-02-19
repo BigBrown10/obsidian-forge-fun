@@ -49,8 +49,8 @@ export default function IncubatorCard({ agent, onClick }: { agent: Agent, onClic
 
             {/* Right Top Actions */}
             <div className="absolute top-6 right-6 flex gap-2">
-                <div className="px-3 py-1.5 rounded-lg bg-black/40 backdrop-blur border border-white/10 text-xs text-text-dim font-mono">
-                    Ends: 24h 12m
+                <div className="px-3 py-1.5 rounded-lg bg-black/40 backdrop-blur border border-white/10 text-xs text-text-dim font-mono flex items-center gap-2">
+                    <Timer className="w-3 h-3" /> 24h Left
                 </div>
             </div>
 
@@ -66,25 +66,25 @@ export default function IncubatorCard({ agent, onClick }: { agent: Agent, onClic
                         {/* Stats Row */}
                         <div className="flex gap-8 mt-4">
                             <div>
-                                <div className="text-[10px] text-text-dim uppercase tracking-widest mb-1">Price</div>
-                                <div className="text-white font-mono font-bold">0.01 BNB</div>
+                                <div className="text-[10px] text-text-dim uppercase tracking-widest mb-1">Raised</div>
+                                <div className="text-white font-mono font-bold">{raised} BNB</div>
                             </div>
                             <div>
                                 <div className="text-[10px] text-text-dim uppercase tracking-widest mb-1">Target</div>
-                                <div className="text-white font-mono font-bold">{target} BNB</div>
+                                <div className="text-white font-mono font-bold text-white/50">{target} BNB</div>
                             </div>
                             <div>
-                                <div className="text-[10px] text-text-dim uppercase tracking-widest mb-1">Minted</div>
-                                <div className="text-accent font-mono font-bold">{progress.toFixed(0)}%</div>
+                                <div className="text-[10px] text-text-dim uppercase tracking-widest mb-1">Funded</div>
+                                <div className="text-blue-400 font-mono font-bold">{progress.toFixed(0)}%</div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Status Indicator */}
+                    {/* Status Indicator (Removed Live, Added Incubating) */}
                     <div className="flex flex-col items-end gap-2">
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 border border-success/20">
-                            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                            <span className="text-xs font-bold text-success uppercase">Live</span>
+                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+                            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                            <span className="text-xs font-bold text-blue-400 uppercase">Incubating</span>
                         </div>
                     </div>
                 </div>
@@ -92,7 +92,7 @@ export default function IncubatorCard({ agent, onClick }: { agent: Agent, onClic
                 {/* Progress Bar Bottom */}
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
                     <div
-                        className="h-full bg-gradient-to-r from-accent to-pink-500"
+                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-400"
                         style={{ width: `${progress}%` }}
                     />
                 </div>
