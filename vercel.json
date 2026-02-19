@@ -5,7 +5,7 @@
     "rewrites": [
         {
             "source": "/api/:path*",
-            "destination": "http://185.81.194.53:3001/:path*"
+            "destination": "https://evil-results-battle.loca.lt/api/:path*"
         }
     ]
 }
