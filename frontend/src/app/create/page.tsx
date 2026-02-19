@@ -277,15 +277,9 @@ function CreateAgentContent() {
                 if (launchMode === 'incubator') {
                     // Incubator -> Agent Page (Incubator View)
                     setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 1000)
-                } else if (parseFloat(initialBuy) > 0 && hash) {
-                    // Instant With Buy -> Go to Pledge (Already Handled? No, handlePledge is a function)
-                    // Wait, handlePledge triggers a write.
-                    // If we are here, we just finished `createProposal`.
-                    // The `handlePledge` function in this file triggers the pledge tx.
-                    // So we call it.
-                    setTimeout(() => handlePledge(pendingProposalId || BigInt(0)), 500)
                 } else {
-                    // Instant No Buy -> Agent Page (Live View)
+                    // Instant -> Agent Page (Live View)
+                    // The buy was already included in the launchInstant call
                     setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 1000)
                 }
             }
