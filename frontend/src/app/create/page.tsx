@@ -227,7 +227,7 @@ function CreateAgentContent() {
                 // 2. Next Steps
                 if (launchMode === 'incubator') {
                     // Incubator Mode: Gas Only. No Pledge.
-                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 2000)
+                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true&mode=incubator`), 2000)
                 } else if (parseFloat(initialBuy) > 0 && hash) {
                     // Instant Mode with Buy
                     // We need to wait for the buy tx now? 
@@ -236,7 +236,7 @@ function CreateAgentContent() {
                     setTimeout(() => handlePledge(id), 1000)
                 } else {
                     // Instant Mode without Buy
-                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true`), 2000)
+                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true&mode=instant`), 2000)
                 }
             }
             handleSuccess();
@@ -384,7 +384,7 @@ function CreateAgentContent() {
             console.error(e)
             // If pledge fails, user is stuck but agent exists. Redirect?
             alert("Pledge failed to start. Agent exists though.")
-            router.push(`/agent/${ticker}?newly_created=true`)
+            router.push(`/agent/${ticker}?newly_created=true&mode=instant`)
         }
     }
 

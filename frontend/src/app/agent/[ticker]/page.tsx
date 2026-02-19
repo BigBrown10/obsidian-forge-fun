@@ -15,9 +15,10 @@ import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap, Users, Rock
 import { formatCompactNumber } from '../../../lib/formatting'
 import AgentBootSequence from '../../../components/AgentBootSequence'
 
-export default function AgentDetail({ params, searchParams }: { params: Promise<{ ticker: string }>, searchParams?: Promise<{ newly_created?: string }> }) {
+export default function AgentDetail({ params, searchParams }: { params: Promise<{ ticker: string }>, searchParams?: Promise<{ newly_created?: string, mode?: string }> }) {
     const [resolvedParams, setResolvedParams] = useState<{ ticker: string } | null>(null)
     const [isNewlyCreated, setIsNewlyCreated] = useState(false)
+    const [creationMode, setCreationMode] = useState<string>('instant')
     const [agent, setAgent] = useState<Agent | null>(null)
     const [loading, setLoading] = useState(true)
     const [logs, setLogs] = useState<any[]>([])
@@ -29,7 +30,12 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
 
     useEffect(() => {
         params.then(setResolvedParams);
-        if (searchParams) searchParams.then(p => setIsNewlyCreated(p?.newly_created === 'true'));
+        if (searchParams) {
+            searchParams.then(p => {
+                setIsNewlyCreated(p?.newly_created === 'true')
+                if (p?.mode) setCreationMode(p.mode)
+            });
+        }
     }, [params, searchParams])
 
     // Derived State
@@ -85,18 +91,25 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
             return (
                 <div className="min-h-screen flex flex-col items-center justify-center space-y-8 bg-black">
                     <div className="relative">
-                        <div className="absolute inset-0 bg-accent/20 blur-3xl rounded-full animate-pulse" />
-                        <Rocket className="w-16 h-16 text-accent animate-bounce relative z-10" />
+                        <div className={`absolute inset-0 blur-3xl rounded-full animate-pulse ${creationMode === 'incubator' ? 'bg-blue-500/20' : 'bg-accent/20'}`} />
+                        {creationMode === 'incubator' ? (
+                            <Egg className="w-16 h-16 text-blue-500 animate-bounce relative z-10" />
+                        ) : (
+                            <Rocket className="w-16 h-16 text-accent animate-bounce relative z-10" />
+                        )}
                     </div>
                     <div className="text-center space-y-2">
-                        <h2 className="text-2xl font-bold text-white">Deploying Agent Container...</h2>
+                        <h2 className="text-2xl font-bold text-white">
+                            {creationMode === 'incubator' ? 'Initializing Incubation...' : 'Deploying Agent Container...'}
+                        </h2>
                         <p className="text-text-dim max-w-md">
-                            Your agent is being initialized in the TEE Enclave. <br />
-                            We are waiting for block confirmation and indexer sync.
+                            {creationMode === 'incubator'
+                                ? "Setting up Genesis Pool and verifying parameters."
+                                : <>Your agent is being initialized in the TEE Enclave. <br />We are waiting for block confirmation and indexer sync.</>}
                         </p>
-                        <div className="flex items-center justify-center gap-2 text-xs font-mono text-accent pt-4">
-                            <span className="w-2 h-2 bg-accent rounded-full animate-ping" />
-                            Scanning Blockchain...
+                        <div className={`flex items-center justify-center gap-2 text-xs font-mono pt-4 ${creationMode === 'incubator' ? 'text-blue-500' : 'text-accent'}`}>
+                            <span className={`w-2 h-2 rounded-full animate-ping ${creationMode === 'incubator' ? 'bg-blue-500' : 'bg-accent'}`} />
+                            {creationMode === 'incubator' ? 'Syncing Metadata...' : 'Scanning Blockchain...'}
                         </div>
                     </div>
                 </div>
