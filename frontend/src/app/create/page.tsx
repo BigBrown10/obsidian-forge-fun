@@ -96,8 +96,8 @@ function CreateAgentContent() {
     const [name, setName] = useState('')
     const [ticker, setTicker] = useState('')
     const [description, setDescription] = useState(AGENT_PRESETS.find(p => p.id === 'full_arsenal')?.manifesto || '')
-    const [target, setTarget] = useState('10')
-    const [initialBuy, setInitialBuy] = useState('0')
+    const [target, setTarget] = useState('1') // Lower default target for incubator
+    const [initialBuy, setInitialBuy] = useState('0.01') // Default to 0.01 for Instant flow
 
     // Capital Allocation
     const [vaultPercent, setVaultPercent] = useState(50)
@@ -131,6 +131,7 @@ function CreateAgentContent() {
         setPendingProposalId(null)
 
         setLaunchMode(mode)
+        setInitialBuy(mode === 'instant' ? '0.01' : '0')
         setCurrentStep('manifesto')
     }
     const [pendingProposalId, setPendingProposalId] = useState<bigint | null>(null)
@@ -735,6 +736,10 @@ function CreateAgentContent() {
                                         // Skip Pledge -> Go straight to Launch
                                         handleCreateProposal()
                                     } else {
+                                        // For Instant, ensure initialBuy is > 0
+                                        if (parseFloat(initialBuy) <= 0) {
+                                            setInitialBuy('0.01');
+                                        }
                                         setCurrentStep('pledge')
                                     }
                                 }}
@@ -777,14 +782,14 @@ function CreateAgentContent() {
                                     <span className="absolute top-[60%] -translate-y-1/2 right-8 text-text-dim font-bold">BNB</span>
                                 </div>
 
-                                <div className="grid grid-cols-4 gap-3">
-                                    {['0', '0.1', '0.5', '1.0'].map(amt => (
+                                <div className="grid grid-cols-5 gap-2">
+                                    {['0.01', '0.05', '0.1', '0.5', '1.0'].map(amt => (
                                         <button
                                             key={amt}
                                             onClick={() => setInitialBuy(amt)}
                                             className={`py-4 rounded-xl font-mono text-sm border transition-all ${initialBuy === amt ? 'border-accent bg-accent/20 text-white shadow-[0_0_15px_-5px_var(--accent)]' : 'border-white/10 bg-surface text-text-dim hover:text-white hover:border-white/30'}`}
                                         >
-                                            {amt === '0' ? 'SKIP' : `${amt} BNB`}
+                                            {amt} BNB
                                         </button>
                                     ))}
                                 </div>
