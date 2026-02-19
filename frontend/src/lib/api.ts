@@ -127,4 +127,5 @@ export interface Agent {
         platform: string
     }
     skills?: number[]
+    launchMode?: 'instant' | 'incubator' | string
 }
