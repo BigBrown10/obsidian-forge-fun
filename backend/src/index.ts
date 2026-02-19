@@ -53,7 +53,7 @@ const fetchAgents = async () => {
     try {
         console.log(`[INIT] Hydrating Agent Registry...`);
         const currentBlock = await publicClient.getBlockNumber();
-        const fromBlock = currentBlock - 250000n; // ~8.5 days historical scan
+        const fromBlock = currentBlock - 100000n; // ~3.5 days historical scan
 
         // 1. Fetch Incubator Agents (Stateful - All versions)
         const vaults = [INCUBATOR_VAULT_ADDRESS, ...LEGACY_VAULTS];
@@ -61,55 +61,42 @@ const fetchAgents = async () => {
 
         for (const vault of vaults) {
             try {
-                const incubatorCount = await publicClient.readContract({
-                    address: vault,
+                const count = await publicClient.readContract({
+                    address: vault as `0x${string}`,
                     abi: [parseAbiItem('function proposalCount() view returns (uint256)')],
                     functionName: 'proposalCount'
-                }) as bigint
+                }) as bigint;
 
-                const start = Math.max(0, Number(incubatorCount) - 30); // Scanning last 30 for historical
-                for (let i = start; i < Number(incubatorCount); i++) {
+                for (let i = 0n; i < count; i++) {
                     try {
-                        const id = BigInt(i)
                         const data = await publicClient.readContract({
-                            address: vault,
-                            abi: [
-                                parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')
-                            ],
+                            address: vault as `0x${string}`,
+                            abi: [parseAbiItem('function proposals(uint256) view returns (address creator, string name, string ticker, string metadataURI, uint256 targetAmount, uint256 pledgedAmount, uint256 createdAt, bool launched, address tokenAddress)')],
                             functionName: 'proposals',
-                            args: [id]
-                        })
-
-                        const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any
-                        const progress = Number(pledgedAmount) / Number(targetAmount) * 100
-
+                            args: [i]
+                        });
+                        const [creator, name, ticker, metadataURI, targetAmount, pledgedAmount, createdAt, launched, tokenAddress] = data as any;
                         agentManager.registerAgent({
-                            id: `${vault}-${id}`, // Unique ID across vaults
-                            name,
-                            ticker,
-                            creator,
-                            metadataURI,
+                            id: `${vault}-${i}`,
+                            name, ticker, creator, metadataURI,
                             targetAmount: targetAmount.toString(),
                             pledgedAmount: pledgedAmount.toString(),
-                            bondingProgress: Math.min(progress, 100),
-                            launched,
-                            tokenAddress,
+                            bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
+                            launched, tokenAddress,
                             createdAt: Number(createdAt),
                             skills: [1],
                             service_origin: 'incubator'
-                        })
-                    } catch (err) { }
+                        });
+                    } catch (e) { }
                 }
             } catch (err) {
-                console.warn(`[INIT] Failed scanning vault ${vault}:`, err);
+                console.warn(`[INIT] Failed scanning incubator ${vault}:`, err);
             }
         }
 
-
-
         // 2. Fetch Instant Launches (All versions with Chunking)
         const launchers = [INSTANT_LAUNCHER_ADDRESS, ...LEGACY_LAUNCHERS];
-        const chunkSize = 5000n; // Micro-chunks for extreme RPC stability
+        const chunkSize = 1000n; // Micro-chunks for extreme RPC stability
 
         console.log(`[INIT] Scanning for Instant Launches (Range: ${fromBlock.toString()} to ${currentBlock.toString()})...`);
 
@@ -120,9 +107,8 @@ const fetchAgents = async () => {
                     const currentTo = currentFrom + chunkSize > currentBlock ? currentBlock : currentFrom + chunkSize;
 
                     try {
-                        // A. New signature
                         const logs = await publicClient.getLogs({
-                            address: launcher,
+                            address: launcher as `0x${string}`,
                             event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)'),
                             fromBlock: currentFrom,
                             toBlock: currentTo
@@ -132,9 +118,8 @@ const fetchAgents = async () => {
                             registerLegacyAgent(tokenAddress, { name, ticker, creator, metadataURI, raisedAmount, origin: 'instant' });
                         }
 
-                        // B. Legacy signature
                         const legacyLogs = await publicClient.getLogs({
-                            address: launcher,
+                            address: launcher as `0x${string}`,
                             event: parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string ticker, uint256 raisedAmount)'),
                             fromBlock: currentFrom,
                             toBlock: currentTo
@@ -144,16 +129,14 @@ const fetchAgents = async () => {
                             registerLegacyAgent(tokenAddress, { ticker, creator, raisedAmount, origin: 'legacy-instant' });
                         }
                     } catch (chunkErr) {
-                        console.warn(`[INIT] Skip failed chunk ${currentFrom}-${currentTo} for ${launcher}:`, chunkErr);
+                        console.warn(`[INIT] Skip chunk ${currentFrom}-${currentTo} for ${launcher}`);
                     }
-
                     currentFrom = currentTo + 1n;
                 }
             } catch (err) {
                 console.warn(`[INIT] Failed scanning launcher ${launcher}:`, err);
             }
         }
-
 
         return Array.from(agentManager.activeAgents.values());
     } catch (e) {
