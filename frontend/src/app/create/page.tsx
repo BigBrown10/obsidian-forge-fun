@@ -242,7 +242,7 @@ function CreateAgentContent() {
 
                 const params = new URLSearchParams()
                 params.set('newly_created', 'true')
-                params.set('mode', launchMode)
+                params.set('mode', launchMode || 'instant')
                 params.set('name', name) // 'name' state
                 params.set('image', image)
                 params.set('desc', desc)
@@ -405,7 +405,13 @@ function CreateAgentContent() {
             console.error(e)
             // If pledge fails, user is stuck but agent exists. Redirect?
             alert("Pledge failed to start. Agent exists though.")
-            router.push(`/agent/${ticker}?newly_created=true&mode=instant&name=${formData.name}&image=${encodeURIComponent(formData.image)}`)
+            // Try to extract image from saved metadata or just skip it
+            let imgUrl = "";
+            try {
+                if (savedMetadata) imgUrl = JSON.parse(savedMetadata).image;
+            } catch (ignore) { }
+
+            router.push(`/agent/${ticker}?newly_created=true&mode=instant&name=${name}&image=${encodeURIComponent(imgUrl)}`)
         }
     }
 
