@@ -50,8 +50,8 @@ export async function getAgents(): Promise<Agent[]> {
     try {
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 8000)
-        // Pointing to VM's private IP to bypass Vercel proxy issues
-        const res = await fetch('http://172.16.16.190:3001/api/agents', { signal: controller.signal })
+        // Pointing to VM's Public IP for Vercel connectivity
+        const res = await fetch('http://4.180.228.169:3001/api/agents', { signal: controller.signal })
         clearTimeout(timeout)
 
         if (!res.ok) throw new Error(`API Error: ${res.status}`)
