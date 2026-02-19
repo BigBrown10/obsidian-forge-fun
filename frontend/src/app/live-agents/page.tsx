@@ -48,12 +48,31 @@ export default function LiveAgentsPage() {
 
     return (
         <div className="min-h-screen bg-base text-text-primary p-6 lg:p-12 space-y-8">
-            <header className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-accent/20">
-                        <Rocket className="w-6 h-6 text-accent" />
+            <header className="flex flex-col gap-2 relative">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-accent/20">
+                            <Rocket className="w-6 h-6 text-accent" />
+                        </div>
+                        <h1 className="text-3xl font-bold tracking-tight text-white">Live Agents</h1>
                     </div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white">Live Agents</h1>
+                    <button
+                        onClick={async () => {
+                            setLoading(true);
+                            try {
+                                await fetch('/api/sync-registry', { method: 'POST' });
+                                const data = await getAgents();
+                                setAgents(data);
+                            } finally {
+                                setLoading(false);
+                            }
+                        }}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
+                    >
+                        <Activity className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                        <span className="text-sm font-medium">Sync Deep Scan</span>
+                    </button>
                 </div>
                 <p className="text-text-dim max-w-2xl">
                     Real-time feed of all agents currently active and trading on the network.
