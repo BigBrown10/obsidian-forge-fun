@@ -225,18 +225,23 @@ function CreateAgentContent() {
                 // Safer to rely on pendingProposalId if set.
 
                 // 2. Next Steps
+                // Optimistic Params for Instant Load
+                const params = new URLSearchParams()
+                params.set('newly_created', 'true')
+                params.set('mode', launchMode)
+                params.set('name', formData.name)
+                params.set('image', formData.image)
+                params.set('desc', formData.description) // Pass description for completeness
+
                 if (launchMode === 'incubator') {
                     // Incubator Mode: Gas Only. No Pledge.
-                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true&mode=incubator`), 2000)
+                    setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 2000)
                 } else if (parseFloat(initialBuy) > 0 && hash) {
                     // Instant Mode with Buy
-                    // We need to wait for the buy tx now? 
-                    // The logic for 'handlePledge' uses `initialBuy`. 
-                    // If we are here, the PROPOSAL is created.
                     setTimeout(() => handlePledge(id), 1000)
                 } else {
                     // Instant Mode without Buy
-                    setTimeout(() => router.push(`/agent/${ticker}?newly_created=true&mode=instant`), 2000)
+                    setTimeout(() => router.push(`/agent/${ticker}?${params.toString()}`), 2000)
                 }
             }
             handleSuccess();
@@ -384,7 +389,7 @@ function CreateAgentContent() {
             console.error(e)
             // If pledge fails, user is stuck but agent exists. Redirect?
             alert("Pledge failed to start. Agent exists though.")
-            router.push(`/agent/${ticker}?newly_created=true&mode=instant`)
+            router.push(`/agent/${ticker}?newly_created=true&mode=instant&name=${formData.name}&image=${encodeURIComponent(formData.image)}`)
         }
     }
 

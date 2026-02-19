@@ -15,10 +15,14 @@ import { ChevronLeft, Brain, Activity, Gavel, Wallet, Terminal, Zap, Users, Rock
 import { formatCompactNumber } from '../../../lib/formatting'
 import AgentBootSequence from '../../../components/AgentBootSequence'
 
-export default function AgentDetail({ params, searchParams }: { params: Promise<{ ticker: string }>, searchParams?: Promise<{ newly_created?: string, mode?: string }> }) {
+export default function AgentDetail({ params, searchParams }: { params: Promise<{ ticker: string }>, searchParams?: Promise<{ newly_created?: string, mode?: string, name?: string, image?: string, desc?: string, id?: string }> }) {
     const [resolvedParams, setResolvedParams] = useState<{ ticker: string } | null>(null)
     const [isNewlyCreated, setIsNewlyCreated] = useState(false)
     const [creationMode, setCreationMode] = useState<string>('instant')
+
+    // Optimistic Data
+    const [optimisticAgent, setOptimisticAgent] = useState<Agent | null>(null)
+
     const [agent, setAgent] = useState<Agent | null>(null)
     const [loading, setLoading] = useState(true)
     const [logs, setLogs] = useState<any[]>([])
@@ -34,17 +38,38 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
             searchParams.then(p => {
                 setIsNewlyCreated(p?.newly_created === 'true')
                 if (p?.mode) setCreationMode(p.mode)
+
+                // Optimistic Hydration
+                if (p?.name && p?.mode) {
+                    const optAgent: Agent = {
+                        id: p.id || '0', // Temporary ID
+                        name: p.name,
+                        ticker: '', // Will be set from resolvedParams
+                        creator: '',
+                        metadataURI: JSON.stringify({ image: p.image, description: p.desc, launchMode: p.mode }),
+                        targetAmount: '10000000000000000000', // Mock 10 BNB
+                        pledgedAmount: '0',
+                        bondingProgress: 0,
+                        launched: false,
+                        tokenAddress: '',
+                        createdAt: new Date().toISOString(),
+                    }
+                    setOptimisticAgent(optAgent)
+                    // If we have optimistic data, we are NOT loading.
+                    setLoading(false)
+                }
             });
         }
     }, [params, searchParams])
 
     // Derived State
-    const isCreator = agent && address ? agent.creator.toLowerCase() === address.toLowerCase() : false
+    const activeAgent = agent || (optimisticAgent ? { ...optimisticAgent, ticker: resolvedParams?.ticker || '' } : null)
+    const isCreator = activeAgent && address ? activeAgent.creator.toLowerCase() === address.toLowerCase() : false
 
     useEffect(() => {
         if (resolvedParams) {
             let retries = 0
-            const maxRetries = isNewlyCreated ? 150 : 30 // Increase retries for new agents (5 mins vs 60s)
+            const maxRetries = isNewlyCreated ? 150 : 30
 
             const fetchAgent = () => {
                 getAgentByTicker(resolvedParams.ticker)
@@ -52,16 +77,17 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
                         if (data) {
                             setAgent(data)
                             setLoading(false)
+                            // Clear optimistic once real data arrives logic? Not strictly needed if agent overrides activeAgent
                         } else if (retries < maxRetries) {
                             retries++
                             setTimeout(fetchAgent, 2000)
                         } else {
-                            setLoading(false)
+                            if (!optimisticAgent) setLoading(false) // Only stop loading if we don't have optimistic data
                         }
                     })
                     .catch(() => {
                         if (retries < maxRetries) { retries++; setTimeout(fetchAgent, 2000) }
-                        else setLoading(false)
+                        else if (!optimisticAgent) setLoading(false)
                     })
             }
             fetchAgent()
@@ -118,7 +144,7 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
         return <AgentBootSequence onComplete={() => { }} />
     }
 
-    if (!agent) return (
+    if (!activeAgent) return (
         <div className="min-h-screen flex flex-col items-center justify-center text-text-dim space-y-4">
             <div className="text-xl font-bold text-white">Signal Lost</div>
             <p className="text-sm max-w-md text-center">The requested agent uplink could not be established.</p>
@@ -139,17 +165,17 @@ export default function AgentDetail({ params, searchParams }: { params: Promise<
 
     let metadata: any = {};
     try {
-        metadata = agent.metadataURI && agent.metadataURI.startsWith('{') ? JSON.parse(agent.metadataURI) : {}
+        metadata = activeAgent.metadataURI && activeAgent.metadataURI.startsWith('{') ? JSON.parse(activeAgent.metadataURI) : {}
     } catch (e) { console.error("Metadata parse error", e) }
 
     const launchMode = metadata.launchMode || 'instant'
-    const isIncubator = launchMode === 'incubator' && !agent.launched
+    const isIncubator = launchMode === 'incubator' && !activeAgent.launched
 
     if (isIncubator) {
-        return <ICOLaunchView agent={agent} />
+        return <ICOLaunchView agent={activeAgent} />
     }
 
-    return <LiveTradingView agent={agent} logs={logs} setLogs={setLogs} isCreator={isCreator} />
+    return <LiveTradingView agent={activeAgent} logs={logs} setLogs={setLogs} isCreator={isCreator} />
 }
 
 // ----------------------------------------------------------------------
