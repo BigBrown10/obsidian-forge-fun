@@ -15,9 +15,44 @@ export default function Dashboard() {
   const router = useRouter()
 
   useEffect(() => {
+    // Initial fetch
     getAgents().then(setAgents)
-    const interval = setInterval(() => getAgents().then(setAgents), 5000)
-    return () => clearInterval(interval)
+
+    // Polling as fallback
+    const interval = setInterval(() => getAgents().then(setAgents), 10000)
+
+    // Real-time WebSocket
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws'
+    const socket = new WebSocket(wsUrl)
+
+    socket.onopen = () => {
+      console.log('[WS] Connected to live feed')
+    }
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'AGENTS_UPDATED') {
+          console.log('[WS] Live update received:', data.agents.length, 'agents')
+          setAgents(data.agents)
+        }
+      } catch (err) {
+        console.error('[WS] Error parsing message:', err)
+      }
+    }
+
+    socket.onerror = (err) => {
+      console.error('[WS] Socket error:', err)
+    }
+
+    socket.onclose = () => {
+      console.log('[WS] Disconnected')
+    }
+
+    return () => {
+      clearInterval(interval)
+      socket.close()
+    }
   }, [])
 
   const handleSelectAgent = (agent: Agent) => {

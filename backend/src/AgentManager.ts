@@ -138,17 +138,29 @@ export class AgentManager {
         }
 
         // Determine Launch Mode (Strict Separation)
-        // If 'launchMode' is in metadata, use it.
-        // If missing, infer from 'launched' status (Legacy Migration).
         let launchMode = metadata.launchMode;
         if (!launchMode) {
             launchMode = agent.launched ? 'instant' : 'incubator';
-            // console.log(`[MIGRATION] Inferred launchMode='${launchMode}' for ${agent.ticker}`);
+        }
+
+        // Ensure name and ticker are sanitized
+        agent.name = agent.name || metadata.name || agent.ticker || "Unknown Agent";
+        agent.ticker = agent.ticker || metadata.ticker || "UNKNOWN";
+        agent.metadataURI = agent.metadataURI || "{}";
+
+        // Ensure image fallback (Failover Logic)
+        if (!metadata.image) {
+            metadata.image = `https://api.dicebear.com/7.x/identicon/svg?seed=${agent.ticker}`;
+            agent.metadataURI = JSON.stringify(metadata);
         }
 
         // Inject the strictly typed mode into the agent object
         agent.launchMode = launchMode;
         agent.service_origin = agent.service_origin || (launchMode === 'instant' ? 'instant' : 'incubator');
+
+        // CROSS-SERVICE VISIBILITY: Explicitly ensure no filters block this
+        agent.is_visible = true;
+        agent.metadata = metadata;
 
         this.activeAgents.set(agent.id, agent);
 

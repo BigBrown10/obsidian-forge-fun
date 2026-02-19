@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { Elysia } from 'elysia'
 import { node } from '@elysiajs/node'
 import { cors } from '@elysiajs/cors'
+import { websocket } from '@elysiajs/websocket'
 import { createPublicClient, http, parseAbiItem, decodeEventLog } from 'viem'
 import { bscTestnet } from 'viem/chains'
 import { AgentManager } from './AgentManager'
@@ -58,7 +59,7 @@ const fetchAgents = async () => {
                     bondingProgress: Math.min(progress, 100),
                     launched,
                     tokenAddress,
-                    createdAt: new Date(Number(createdAt) * 1000).toISOString(),
+                    createdAt: Number(createdAt),
                     skills: [1],
                     service_origin: 'incubator'
                 })
@@ -86,7 +87,7 @@ const fetchAgents = async () => {
                     bondingProgress: 100,
                     launched: true,
                     tokenAddress,
-                    createdAt: new Date().toISOString(),
+                    createdAt: Math.floor(Date.now() / 1000),
                     skills: [1],
                     service_origin: 'instant'
                 })
@@ -102,6 +103,19 @@ const fetchAgents = async () => {
 
 const app = new Elysia({ adapter: node() })
     .use(cors())
+    .use(websocket())
+    .ws('/ws', {
+        open(ws) {
+            console.log(`[WS] Client connected`);
+            ws.subscribe('agent-updates');
+        },
+        message(ws, message) {
+            console.log(`[WS] Received: ${message}`);
+        },
+        close(ws) {
+            console.log(`[WS] Client disconnected`);
+        }
+    })
     .get('/', () => 'Hello from Forge.fun Backend (Obsidian Core)')
     .get('/health', () => 'OK')
     .get('/api/agents', async () => {
@@ -125,7 +139,7 @@ const app = new Elysia({ adapter: node() })
                 targetAmount: targetAmount.toString(),
                 pledgedAmount: pledgedAmount.toString(),
                 bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
-                createdAt: new Date(Number(createdAt) * 1000).toISOString(),
+                createdAt: Number(createdAt),
                 launched, tokenAddress,
                 identity: agentManager.getAgentIdentity(id),
                 skills: [1],
@@ -167,7 +181,7 @@ const app = new Elysia({ adapter: node() })
                             id: tokenAddress, name, ticker, creator, metadataURI,
                             targetAmount: '0', pledgedAmount: raisedAmount.toString(),
                             bondingProgress: 100, launched: true, tokenAddress,
-                            createdAt: new Date().toISOString(), service_origin: 'instant'
+                            createdAt: Math.floor(Date.now() / 1000), service_origin: 'instant'
                         };
                         agentManager.registerAgent(agent);
                         return { success: true, mode: 'instant', agent };
@@ -193,7 +207,7 @@ const app = new Elysia({ adapter: node() })
                             id, creator, name, ticker, metadataURI,
                             targetAmount: targetAmount.toString(), pledgedAmount: pledgedAmount.toString(),
                             bondingProgress: Math.min((Number(pledgedAmount) / Number(targetAmount) * 100), 100),
-                            createdAt: new Date(Number(createdAt) * 1000).toISOString(),
+                            createdAt: Number(createdAt),
                             launched, tokenAddress, service_origin: 'incubator'
                         };
                         agentManager.registerAgent(agent);
@@ -218,7 +232,17 @@ publicClient.watchContractEvent({
         parseAbiItem('event ProposalCreated(uint256 indexed id, string name, string ticker, address indexed creator)'),
         parseAbiItem('event InstantLaunch(address indexed tokenAddress, address indexed creator, string name, string ticker, string metadataURI, uint256 raisedAmount)')
     ],
-    onLogs: () => fetchAgents()
+    onLogs: async (logs) => {
+        console.log(`[EVENT] Detected ${logs.length} on-chain events. Syncing...`);
+        await fetchAgents();
+
+        // Broadcast the news to all WS clients
+        const agents = Array.from(agentManager.activeAgents.values()).reverse();
+        app.server?.publish('agent-updates', JSON.stringify({
+            type: 'AGENTS_UPDATED',
+            agents: agents.slice(0, 50) // Send latest 50
+        }));
+    }
 });
 
 fetchAgents();
