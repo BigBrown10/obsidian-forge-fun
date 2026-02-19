@@ -187,6 +187,12 @@ export default function CreateAgent() {
                         setIsRegistering(false)
                     }
 
+                    // 1.5 Force Backend Sync (Reduce "20 min" wait)
+                    try {
+                        await fetch('http://localhost:3001/api/sync-registry', { method: 'POST' }); // Try localhost for speed in dev
+                        await fetch('/api/sync-registry', { method: 'POST' }); // Try proxy
+                    } catch (e) { console.error("Sync Trigger Failed", e) }
+
                     // 2. Next Steps
                     if (launchMode === 'incubator') {
                         // Incubator Mode: Gas Only. No Pledge.
@@ -620,7 +626,7 @@ export default function CreateAgent() {
                             >
                                 {launchMode === 'incubator' ? (
                                     <>
-                                        <Rocket className="w-5 h-5" /> Deploy Incubator (Gas Only)
+                                        <div className="p-1 rounded-full bg-blue-500/20 mr-2"><Egg className="w-4 h-4 text-blue-400" /></div> Start Incubation
                                     </>
                                 ) : (
                                     <>

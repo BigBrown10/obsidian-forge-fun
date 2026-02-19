@@ -215,11 +215,11 @@ fetchAgents().then(agents => {
     console.log(`[INIT] Hydrated ${agents.length} agents from on-chain.`);
 });
 
-// Poll for new agents every 30 seconds
+// Poll for new agents every 5 seconds (Aggressive for MVP responsiveness)
 setInterval(async () => {
     console.log('[POLL] Checking for new agents...');
     await fetchAgents();
-}, 30000);
+}, 5000);
 
 // --- Real-time Event Listener ---
 console.log(`[LISTENER] Watching for 'Launched' events on ${LAUNCHPAD_ADDRESS}...`);
