@@ -25,11 +25,24 @@ export default function Dashboard() {
   }
 
   const liveAgents = agents.filter(a => {
+    // 1. If Launched, it's Live.
+    if (a.launched) return true
+
+    // 2. If not launched, check metadata.
     try {
       const m = a.metadataURI && a.metadataURI.startsWith('{') ? JSON.parse(a.metadataURI) : {}
-      const isIncubator = m.launchMode === 'incubator'
-      return a.launched || !isIncubator
-    } catch { return true }
+
+      // If Explicitly Incubator -> Exclude
+      if (m.launchMode === 'incubator') return false
+
+      // If Explicitly Instant -> Include
+      if (m.launchMode === 'instant') return true
+
+      // If no launch mode specified, but not launched -> Exclude (Safety)
+      return false
+    } catch {
+      return false // Error parsing -> Exclude from Live
+    }
   }).sort((a, b) => Number(b.id) - Number(a.id))
 
   const incubatorAgents = agents.filter(a => {
@@ -53,7 +66,7 @@ export default function Dashboard() {
         {incubatorAgents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {incubatorAgents.map(agent => (
-              <TokenCard key={agent.id} agent={agent} onClick={() => handleSelectAgent(agent)} />
+              <IncubatorCard key={agent.id} agent={agent} onClick={() => handleSelectAgent(agent)} />
             ))}
           </div>
         ) : (
